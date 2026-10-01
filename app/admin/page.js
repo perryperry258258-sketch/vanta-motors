@@ -156,7 +156,7 @@ function CarList() {
                       <button disabled={busy} onClick={() => setStatus(car, 'published')}>上架</button>
                     )}
                     {car.status === 'published' && (
-                      <a href={`/cars/${car.slug}`} target="_blank" rel="noopener noreferrer">預覽</a>
+                      <a href={`/zh/vehicles/${car.slug}`} target="_blank" rel="noopener noreferrer">預覽</a>
                     )}
                     <button className="danger" disabled={busy} onClick={() => remove(car)}>刪除</button>
                   </div>
@@ -168,4 +168,4 @@ function CarList() {
       )}
     </>
   );
-                  }
+                      }
