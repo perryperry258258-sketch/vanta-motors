@@ -1,25 +1,34 @@
+import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Gallery from '../../../components/Gallery';
-import { cars, getCar, formatPrice, site } from '../../../lib/site';
+import { getCarBySlug } from '../../../lib/cars';
+import { site, formatPrice } from '../../../lib/site';
 
-export function generateStaticParams() {
-  return cars.map((c) => ({ slug: c.slug }));
-}
+export const dynamic = 'force-dynamic';
+
+const loadCar = cache(async (slug) => {
+  try {
+    return await getCarBySlug(slug);
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+});
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const car = getCar(slug);
+  const car = await loadCar(slug);
   if (!car) return {};
   return {
     title: car.title,
-    openGraph: { title: `${car.title}｜VANTA MOTORS`, images: [car.photos[0]] },
+    openGraph: { title: `${car.title}｜VANTA MOTORS`, images: car.photos.slice(0, 1) },
   };
 }
 
 export default async function CarPage({ params }) {
   const { slug } = await params;
-  const car = getCar(slug);
+  const car = await loadCar(slug);
   if (!car) notFound();
 
   const rows = [
@@ -32,7 +41,7 @@ export default async function CarPage({ params }) {
 
   return (
     <main className="detail">
-      <Gallery photos={car.photos} title={car.title} />
+      {car.photos.length > 0 && <Gallery photos={car.photos} title={car.title} />}
 
       <div className="detail-body">
         <h1>{car.title}</h1>
