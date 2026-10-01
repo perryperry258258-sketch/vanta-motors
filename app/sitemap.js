@@ -13,7 +13,7 @@ function entries(path, lastModified) {
 }
 
 export default async function sitemap() {
-  const items = [...entries(''), ...entries('/vehicles')];
+  const items = [...entries(''), ...entries('/vehicles'), ...entries('/sell-your-car')];
   try {
     const { data } = await getSupabase()
       .from('cars')
