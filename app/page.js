@@ -1,9 +1,17 @@
 import Link from 'next/link';
 import CarCard from '../components/CarCard';
-import { site, publishedCars } from '../lib/site';
+import { site } from '../lib/site';
+import { latestCars } from '../lib/cars';
 
-export default function Home() {
-  const latest = publishedCars().slice(0, 6);
+export const dynamic = 'force-dynamic';
+
+export default async function Home() {
+  let latest = [];
+  try {
+    latest = await latestCars(6);
+  } catch (e) {
+    console.error(e);
+  }
 
   return (
     <main>
@@ -27,12 +35,18 @@ export default function Home() {
           <p className="section-en">Latest Vehicles</p>
           <h2 className="section-title">最新車源</h2>
         </div>
-        <div className="grid">
-          {latest.map((car) => <CarCard key={car.slug} car={car} />)}
-        </div>
-        <div className="more-link">
-          <Link href="/cars" className="btn btn-light">查看全部車輛</Link>
-        </div>
+        {latest.length > 0 ? (
+          <>
+            <div className="grid">
+              {latest.map((car) => <CarCard key={car.id} car={car} />)}
+            </div>
+            <div className="more-link">
+              <Link href="/cars" className="btn btn-light">查看全部車輛</Link>
+            </div>
+          </>
+        ) : (
+          <p className="empty">車源整理中，歡迎直接來電或 LINE 詢問。</p>
+        )}
       </section>
 
       <section className="about" id="about">
