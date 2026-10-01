@@ -2,9 +2,12 @@
 
 import { useEffect } from 'react';
 import { site } from '../lib/site';
+import { dict } from '../lib/i18n';
 import { trackCar } from '../lib/track';
 
-export default function ContactBar({ carId }) {
+export default function ContactBar({ carId, lang = 'zh' }) {
+  const t = dict[lang].car;
+
   useEffect(() => {
     trackCar(carId, 'view');
   }, [carId]);
@@ -12,10 +15,10 @@ export default function ContactBar({ carId }) {
   return (
     <div className="contact-bar">
       <div className="contact-bar-inner">
-        <p>對這台車有興趣？</p>
+        <p>{t.interested}</p>
         <div className="contact-buttons">
           <a href={`tel:${site.phone}`} className="btn btn-dark" onClick={() => trackCar(carId, 'phone')}>
-            電話詢問
+            {t.call}
           </a>
           <a
             href={site.lineUrl}
@@ -24,7 +27,7 @@ export default function ContactBar({ carId }) {
             rel="noopener noreferrer"
             onClick={() => trackCar(carId, 'line')}
           >
-            LINE 詢問
+            {t.line}
           </a>
         </div>
       </div>
