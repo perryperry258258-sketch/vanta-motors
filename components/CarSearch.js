@@ -88,7 +88,7 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       {!loading && cars.length === 0 && (
         <p className="empty">
           {t.emptyBefore}
-          <a href={`tel:${site.phone}`}>{t.emptyLink}</a>
+          <a href={site.lineUrl} target="_blank" rel="noopener noreferrer">{t.emptyLink}</a>
           {t.emptyAfter}
         </p>
       )}
