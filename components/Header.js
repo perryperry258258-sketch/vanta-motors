@@ -6,6 +6,7 @@ import Logo from './Logo';
 import LangSwitch from './LangSwitch';
 import { dict } from '../lib/i18n';
 import '../styles/i18n.css';
+import '../styles/sell.css';
 
 export default function Header({ lang = 'zh' }) {
   const [open, setOpen] = useState(false);
@@ -15,6 +16,7 @@ export default function Header({ lang = 'zh' }) {
   const links = [
     [`/${lang}`, t.home],
     [`/${lang}/vehicles`, t.vehicles],
+    [`/${lang}/sell-your-car`, t.sell],
     [`/${lang}#about`, t.about],
     [`/${lang}#contact`, t.contact],
   ];
