@@ -35,7 +35,10 @@ export default async function Home({ params }) {
             <span>MOTORS</span>
           </h1>
           <p className="hero-sub">{t.hero.tagline}</p>
-          <Link href={`/${lang}/vehicles`} className="btn btn-dark">{t.hero.browse}</Link>
+          <div className="hero-actions">
+            <Link href={`/${lang}/vehicles`} className="btn btn-dark">{t.hero.browse}</Link>
+            <Link href={`/${lang}/sell-your-car`} className="btn btn-light">{t.hero.sell}</Link>
+          </div>
         </div>
       </section>
 
@@ -76,8 +79,8 @@ export default async function Home({ params }) {
         <h2 className="section-title">{t.home.contactTitle}</h2>
         <p className="contact-lead">{t.home.contactLead}</p>
         <div className="contact-actions">
-          <a href={`tel:${site.phone}`} className="btn btn-dark">{t.car.call} {site.phoneDisplay}</a>
-          <a href={site.lineUrl} className="btn btn-light" target="_blank" rel="noopener noreferrer">{t.car.line}</a>
+          <a href={site.lineUrl} className="btn btn-dark" target="_blank" rel="noopener noreferrer">{t.car.line}</a>
+          <Link href={`/${lang}/sell-your-car`} className="btn btn-light">{t.hero.sell}</Link>
         </div>
         <p className="contact-meta">{t.home.lineId}{site.lineId}</p>
       </section>
