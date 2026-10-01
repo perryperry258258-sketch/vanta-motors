@@ -1,0 +1,18 @@
+.header-right { display: flex; align-items: center; gap: 28px; }
+
+.lang-switch { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; letter-spacing: .06em; color: var(--mute); }
+.lang-switch a { color: var(--mute); transition: color .2s; }
+.lang-switch a:hover, .lang-switch a[aria-current="true"] { color: var(--black); }
+.lang-switch span { color: var(--line); }
+.lang-switch-desktop { display: none; }
+@media (min-width: 900px) { .lang-switch-desktop { display: inline-flex; } }
+.nav-mobile .lang-switch { margin-top: 18px; }
+.nav-mobile .lang-switch a { font-size: 16px; padding: 0; }
+
+.footer-brand { display: flex; align-items: center; gap: 12px; color: var(--black); }
+.footer-brand strong { font-size: 14px; font-weight: 500; letter-spacing: .24em; }
+.footer-region { font-size: 12px; letter-spacing: .2em; color: var(--mute); }
+.footer-links { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.footer-links a { color: var(--ink2); }
+.footer-links span { color: var(--line); }
+.footer-tagline { color: var(--mute); }
