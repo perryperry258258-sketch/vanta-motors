@@ -1,10 +1,8 @@
 import { LogoMark } from './Logo';
 import LangSwitch from './LangSwitch';
 import { site } from '../lib/site';
-import { dict } from '../lib/i18n';
 
 export default function Footer({ lang }) {
-  const t = dict[lang].footer;
   return (
     <footer className="footer">
       <div className="footer-inner">
@@ -17,9 +15,7 @@ export default function Footer({ lang }) {
         </div>
         <LangSwitch lang={lang} long />
         <p className="footer-links">
-          <a href={`tel:${site.phone}`}>{t.call} {site.phoneDisplay}</a>
-          <span aria-hidden="true">|</span>
-          <a href={site.lineUrl} target="_blank" rel="noopener noreferrer">LINE</a>
+          <a href={site.lineUrl} target="_blank" rel="noopener noreferrer">LINE {site.lineId}</a>
           {site.instagramUrl && (
             <>
               <span aria-hidden="true">|</span>
