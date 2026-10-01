@@ -4,7 +4,7 @@ export default function CarCard({ car }) {
   return (
     <Link href={`/cars/${car.slug}`} className="card">
       <div className="card-img">
-        <img src={car.photos[0]} alt={car.title} loading="lazy" />
+        {car.cover && <img src={car.cover} alt={car.title} loading="lazy" />}
       </div>
       <div className="card-body">
         <h3>{car.title}</h3>
