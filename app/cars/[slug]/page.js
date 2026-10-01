@@ -36,7 +36,7 @@ export default async function CarPage({ params }) {
     ['車型', [car.brand, car.model].filter(Boolean).join(' ') || null],
     ['顏色', car.color],
     ['里程', car.mileage ? `${car.mileage.toLocaleString()} 公里` : null],
-    ['價格', formatPrice(car.price)],
+    ['價格', formatPrice(car.price, car.price_max)],
   ].filter(([, v]) => v);
 
   return (
