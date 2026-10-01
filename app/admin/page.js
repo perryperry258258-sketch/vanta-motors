@@ -7,7 +7,7 @@ import { getSupabase, photoUrl, BUCKET } from '../../lib/supabase';
 
 const STATUS_LABEL = { published: '已上架', draft: '草稿', unlisted: '已下架' };
 const TABS = [['all', '全部'], ['published', '已上架'], ['draft', '草稿'], ['unlisted', '已下架']];
-const SORTS = [['new', '最新'], ['views', '瀏覽最多'], ['inquiries', '詢問最多']];
+const SORTS = [['new', '最新'], ['views', '瀏覽最多'], ['inquiries', 'LINE 詢問最多']];
 
 export default function AdminPage() {
   return (
@@ -23,7 +23,6 @@ function normalize(car) {
     ...car,
     stats: {
       views: (s && s.views) || 0,
-      phone: (s && s.phone_clicks) || 0,
       line: (s && s.line_clicks) || 0,
     },
   };
@@ -41,7 +40,7 @@ function CarList() {
     (async () => {
       const { data, error } = await getSupabase()
         .from('cars')
-        .select('id, slug, title, year, status, created_at, car_photos(path, sort_order), car_stats(views, phone_clicks, line_clicks)')
+        .select('id, slug, title, year, status, created_at, car_photos(path, sort_order), car_stats(views, line_clicks)')
         .order('created_at', { ascending: false })
         .order('sort_order', { referencedTable: 'car_photos' })
         .limit(1, { referencedTable: 'car_photos' })
@@ -63,11 +62,7 @@ function CarList() {
       (c) => (tab === 'all' || c.status === tab) && (!k || c.title.toLowerCase().includes(k))
     );
     if (sort === 'views') return [...filtered].sort((a, b) => b.stats.views - a.stats.views);
-    if (sort === 'inquiries') {
-      return [...filtered].sort(
-        (a, b) => b.stats.phone + b.stats.line - (a.stats.phone + a.stats.line)
-      );
-    }
+    if (sort === 'inquiries') return [...filtered].sort((a, b) => b.stats.line - a.stats.line);
     return filtered;
   }, [cars, q, tab, sort]);
 
@@ -145,9 +140,7 @@ function CarList() {
                     {car.year || '年份未填'}
                     <span className={`status status-${car.status}`}>{STATUS_LABEL[car.status]}</span>
                   </p>
-                  <p className="car-row-meta">
-                    瀏覽 {car.stats.views}　電話 {car.stats.phone}　LINE {car.stats.line}
-                  </p>
+                  <p className="car-row-meta">瀏覽 {car.stats.views}　LINE {car.stats.line}</p>
                   <div className="car-row-actions">
                     <Link href={`/admin/edit?id=${car.id}`}>編輯</Link>
                     {car.status === 'published' ? (
@@ -168,4 +161,4 @@ function CarList() {
       )}
     </>
   );
-                      }
+}
