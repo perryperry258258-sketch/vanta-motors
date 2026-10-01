@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import CarCard from './CarCard';
 import { searchCars } from '../lib/cars';
 import { site } from '../lib/site';
+import { dict } from '../lib/i18n';
 
-export default function CarSearch({ initial, brands, years }) {
+export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
+  const t = dict[lang].vehicles;
   const [q, setQ] = useState('');
   const [brand, setBrand] = useState('');
   const [year, setYear] = useState('');
@@ -62,39 +64,39 @@ export default function CarSearch({ initial, brands, years }) {
       <div className="search">
         <input
           type="search"
-          placeholder="搜尋車型，例如 320i"
+          placeholder={t.searchPlaceholder}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          aria-label="搜尋車型"
+          aria-label={t.searchLabel}
         />
-        <select value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="品牌">
-          <option value="">所有品牌</option>
+        <select value={brand} onChange={(e) => setBrand(e.target.value)} aria-label={t.brandLabel}>
+          <option value="">{t.allBrands}</option>
           {brands.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
-        <select value={year} onChange={(e) => setYear(e.target.value)} aria-label="年份">
-          <option value="">所有年份</option>
+        <select value={year} onChange={(e) => setYear(e.target.value)} aria-label={t.yearLabel}>
+          <option value="">{t.allYears}</option>
           {years.map((y) => <option key={y} value={String(y)}>{y}</option>)}
         </select>
       </div>
 
       {cars.length > 0 && (
         <div className="grid">
-          {cars.map((car) => <CarCard key={car.id} car={car} />)}
+          {cars.map((car) => <CarCard key={car.id} car={car} lang={lang} />)}
         </div>
       )}
 
       {!loading && cars.length === 0 && (
         <p className="empty">
-          目前沒有符合條件的車輛。可以清除篩選，或直接
-          <a href={`tel:${site.phone}`}>來電詢問</a>
-          想找的車款。
+          {t.emptyBefore}
+          <a href={`tel:${site.phone}`}>{t.emptyLink}</a>
+          {t.emptyAfter}
         </p>
       )}
 
       {hasMore && (
         <div className="more-link">
           <button className="btn btn-light" onClick={loadMore} disabled={loading}>
-            {loading ? '載入中…' : '載入更多'}
+            {loading ? t.loading : t.loadMore}
           </button>
         </div>
       )}
