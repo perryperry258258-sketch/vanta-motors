@@ -16,13 +16,10 @@ export default function ContactBar({ carId, lang = 'zh' }) {
     <div className="contact-bar">
       <div className="contact-bar-inner">
         <p>{t.interested}</p>
-        <div className="contact-buttons">
-          <a href={`tel:${site.phone}`} className="btn btn-dark" onClick={() => trackCar(carId, 'phone')}>
-            {t.call}
-          </a>
+        <div className="contact-buttons contact-buttons-single">
           <a
             href={site.lineUrl}
-            className="btn btn-light"
+            className="btn btn-dark"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackCar(carId, 'line')}
