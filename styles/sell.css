@@ -1,0 +1,101 @@
+/* 首頁雙 CTA、單一 LINE 按鈕 */
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (min-width: 900px) { .hero-actions { justify-content: flex-end; } }
+.contact-buttons-single { grid-template-columns: 1fr; }
+
+/* 我要賣車 */
+.sell { max-width: 720px; margin: 0 auto; padding: clamp(56px, 10vw, 120px) var(--pad) clamp(80px, 12vw, 140px); }
+.sell-head { margin-bottom: clamp(40px, 7vw, 64px); }
+.sell-title { font-size: clamp(34px, 7vw, 56px); font-weight: 400; letter-spacing: .04em; line-height: 1.25; }
+.sell-sub { margin-top: 12px; font-size: clamp(16px, 2vw, 19px); letter-spacing: .06em; color: var(--ink2); }
+
+.sell-form { display: grid; gap: 28px; }
+.sell-step { display: block; }
+.sell-step-label { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; font-size: 15px; }
+.sell-step-label small { font-size: 12px; letter-spacing: .12em; color: var(--mute); }
+.sell-step select, .sell-km input {
+  width: 100%; height: 58px; padding: 0 18px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background-color: var(--white); color: var(--black);
+  font: inherit; font-size: 17px;
+  -webkit-appearance: none; appearance: none;
+}
+.sell-step select {
+  padding-right: 44px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 18px center;
+}
+.sell-step select:disabled { background-color: var(--paper); color: var(--mute); }
+.sell-km { position: relative; }
+.sell-km input { padding-right: 56px; font-variant-numeric: tabular-nums; }
+.sell-km span { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--mute); pointer-events: none; }
+.sell-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sell-chips button { padding: 8px 14px; border-radius: 999px; background: var(--paper); color: var(--ink2); font-size: 14px; }
+.sell-chips button[aria-pressed="true"] { background: var(--black); color: var(--white); }
+.sell-submit { width: 100%; min-height: 58px; font-size: 16px; }
+.sell-error { padding: 12px 16px; border-radius: 12px; background: var(--paper); color: var(--ink2); font-size: 14px; }
+.sell-help { text-align: center; }
+
+.text-link { padding: 0; border-bottom: 1px solid var(--line); color: var(--ink2); font-size: 14px; }
+
+/* 估價結果 */
+.estimate { animation: rise .8s var(--ease) both; }
+.estimate-car-label { font-size: 13px; letter-spacing: .12em; color: var(--mute); }
+.estimate-car { margin-top: 8px; font-size: clamp(28px, 6vw, 44px); font-weight: 500; letter-spacing: .02em; line-height: 1.25; }
+.estimate-km { margin-top: 4px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.estimate-box { margin-top: clamp(32px, 6vw, 56px); padding: clamp(32px, 6vw, 56px) clamp(22px, 5vw, 48px); border-radius: 24px; background: var(--paper); }
+.estimate-range-label { font-size: 14px; letter-spacing: .1em; color: var(--ink2); }
+.estimate-range {
+  margin-top: 14px;
+  font-size: clamp(32px, 8.2vw, 62px); font-weight: 300; letter-spacing: .01em; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.estimate-limited { margin-top: 18px; font-size: 14px; color: var(--black); }
+.estimate-nodata { font-size: clamp(18px, 3.4vw, 22px); line-height: 1.7; }
+.estimate-note { margin-top: 16px; font-size: 13px; line-height: 1.9; color: var(--mute); }
+.estimate-updated { margin-top: 10px; font-size: 12px; letter-spacing: .04em; color: var(--mute); }
+.estimate-cta { display: grid; gap: 12px; margin-top: 28px; }
+.estimate-cta .btn { width: 100%; min-height: 58px; font-size: 16px; }
+.btn.is-disabled { opacity: .5; }
+.line-fallback { margin-top: 16px; font-size: 14px; color: var(--ink2); }
+.line-fallback p { margin-bottom: 10px; line-height: 1.8; }
+.line-fallback pre {
+  margin-bottom: 12px; padding: 14px; border-radius: 12px;
+  background: var(--white); color: var(--black);
+  font: inherit; font-size: 13px; line-height: 1.8; white-space: pre-wrap;
+}
+.line-fallback-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+
+/* 照片 */
+.photos { margin-top: clamp(56px, 9vw, 88px); }
+.photos h3 { font-size: clamp(22px, 4vw, 28px); font-weight: 400; letter-spacing: .04em; }
+.photos-lead { margin-top: 4px; color: var(--ink2); }
+.photo-slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 24px; }
+@media (min-width: 700px) { .photo-slots { grid-template-columns: repeat(4, 1fr); } }
+.photo-slot {
+  position: relative; overflow: hidden; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 4 / 3; border: 1px dashed #cfcfcf; border-radius: 14px;
+  background: var(--white); color: var(--ink2); font-size: 14px;
+}
+.photo-slot input { display: none; }
+.photo-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.photo-slot-label { position: relative; z-index: 1; }
+.photo-slot.filled { border: 0; }
+.photo-slot.filled .photo-slot-label {
+  position: absolute; left: 8px; bottom: 8px; padding: 2px 8px;
+  border-radius: 999px; background: rgba(17, 17, 17, .6); color: var(--white); font-size: 12px;
+}
+.photo-slot-remove {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255, 255, 255, .92); font-size: 13px;
+}
+.sell-contact-label { margin-top: 28px; font-size: 14px; color: var(--ink2); }
+.sell-contact { display: grid; gap: 10px; margin-top: 10px; }
+.sell-contact input {
+  height: 52px; padding: 0 16px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--white); font: inherit; font-size: 16px; color: var(--black);
+}
+@media (min-width: 700px) { .sell-contact { grid-template-columns: repeat(3, 1fr); } }
+.restart { margin-top: 48px; text-align: center; }
