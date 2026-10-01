@@ -9,7 +9,7 @@ import { compressImage } from '../../../lib/image';
 
 const EMPTY = {
   title: '', brand: '', model: '', year: '', color: '',
-  price: '', mileage: '', description: '', status: 'published',
+  price: '', price_max: '', mileage: '', description: '', status: 'published',
 };
 
 const UNSURE_HINT = '無法從車名判斷，請確認後填寫，不確定可以留空';
@@ -70,6 +70,7 @@ function Editor() {
         year: data.year ?? '',
         color: data.color || '',
         price: data.price ?? '',
+        price_max: data.price_max ?? '',
         mileage: data.mileage ?? '',
         description: data.description || '',
         status: data.status,
@@ -136,16 +137,28 @@ function Editor() {
     if (!title) return setError('請輸入車名，例如 2021 BMW 320i。');
     if (photos.length === 0) return setError('請至少上傳一張照片。');
 
+    const num = (v) => (v === '' || v === null || v === undefined ? null : Math.round(Number(v)));
+    let price = num(form.price);
+    let priceMax = num(form.price_max);
+    if (price === null && priceMax !== null) {
+      price = priceMax;
+      priceMax = null;
+    }
+    if (price !== null && priceMax !== null) {
+      if (priceMax < price) [price, priceMax] = [priceMax, price];
+      if (priceMax === price) priceMax = null;
+    }
+
     setSaving(true);
     const supabase = getSupabase();
-    const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
     const row = {
       title,
       brand: String(form.brand).trim() || null,
       model: String(form.model).trim() || null,
       year: num(form.year),
       color: String(form.color).trim() || null,
-      price: num(form.price),
+      price,
+      price_max: priceMax,
       mileage: num(form.mileage),
       description: String(form.description).trim() || null,
       status: form.status,
@@ -275,13 +288,17 @@ function Editor() {
         <Field label="顏色（選填）">
           <input value={form.color} onChange={(e) => update('color', e.target.value)} />
         </Field>
-        <Field label="價格（萬，選填）">
-          <input type="number" inputMode="decimal" value={form.price} onChange={(e) => update('price', e.target.value)} placeholder="空白顯示歡迎洽詢" />
+        <Field label="價格最低（萬，選填）">
+          <input type="number" inputMode="numeric" value={form.price} onChange={(e) => update('price', e.target.value)} />
+        </Field>
+        <Field label="價格最高（萬，選填）">
+          <input type="number" inputMode="numeric" value={form.price_max} onChange={(e) => update('price_max', e.target.value)} />
         </Field>
         <Field label="里程（公里，選填）">
           <input type="number" inputMode="numeric" value={form.mileage} onChange={(e) => update('mileage', e.target.value)} />
         </Field>
       </div>
+      <p className="admin-muted">價格只填一格會顯示單一價格，兩格都空白會顯示「歡迎洽詢」。</p>
 
       <Field label="簡短介紹（選填）">
         <textarea value={form.description} onChange={(e) => update('description', e.target.value)} />
@@ -307,4 +324,4 @@ function Editor() {
       </div>
     </>
   );
-    }
+            }
