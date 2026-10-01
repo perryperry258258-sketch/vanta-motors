@@ -1,10 +1,21 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '../../lib/supabase';
+import '../../styles/buyback-admin.css';
+
+const NAV = [
+  ['/admin', '車輛管理'],
+  ['/admin/buyback', '收車總覽'],
+  ['/admin/buyback/leads', '收車線索'],
+  ['/admin/buyback/pricing', '行情規則'],
+  ['/admin/buyback/catalog', '品牌與係數'],
+];
 
 export default function AdminShell({ children }) {
+  const pathname = usePathname();
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
@@ -22,7 +33,11 @@ export default function AdminShell({ children }) {
   return (
     <main className="admin">
       <div className="admin-top">
-        <Link href="/admin">← 車輛管理</Link>
+        <nav className="admin-nav">
+          {NAV.map(([href, label]) => (
+            <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>{label}</Link>
+          ))}
+        </nav>
         <button className="btn btn-light btn-sm" onClick={() => getSupabase().auth.signOut()}>登出</button>
       </div>
       {children}
