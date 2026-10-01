@@ -1,30 +1,61 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CarCard from './CarCard';
+import { searchCars } from '../lib/cars';
 import { site } from '../lib/site';
 
-export default function CarSearch({ cars }) {
+export default function CarSearch({ initial, brands, years }) {
   const [q, setQ] = useState('');
   const [brand, setBrand] = useState('');
   const [year, setYear] = useState('');
+  const [cars, setCars] = useState(initial.cars);
+  const [hasMore, setHasMore] = useState(initial.hasMore);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const first = useRef(true);
+  const requestId = useRef(0);
 
-  const brands = useMemo(
-    () => [...new Set(cars.map((c) => c.brand).filter(Boolean))].sort(),
-    [cars]
-  );
-  const years = useMemo(
-    () => [...new Set(cars.map((c) => c.year).filter(Boolean))].sort((a, b) => b - a),
-    [cars]
-  );
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const id = ++requestId.current;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await searchCars({ q, brand, year, page: 0 });
+        if (id === requestId.current) {
+          setCars(res.cars);
+          setHasMore(res.hasMore);
+          setPage(0);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (id === requestId.current) setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q, brand, year]);
 
-  const keyword = q.trim().toLowerCase();
-  const list = cars.filter(
-    (c) =>
-      (!brand || c.brand === brand) &&
-      (!year || String(c.year) === year) &&
-      (!keyword || c.title.toLowerCase().includes(keyword))
-  );
+  async function loadMore() {
+    const id = ++requestId.current;
+    setLoading(true);
+    try {
+      const res = await searchCars({ q, brand, year, page: page + 1 });
+      if (id === requestId.current) {
+        setCars((prev) => [...prev, ...res.cars]);
+        setHasMore(res.hasMore);
+        setPage(page + 1);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (id === requestId.current) setLoading(false);
+    }
+  }
 
   return (
     <>
@@ -46,16 +77,26 @@ export default function CarSearch({ cars }) {
         </select>
       </div>
 
-      {list.length > 0 ? (
+      {cars.length > 0 && (
         <div className="grid">
-          {list.map((car) => <CarCard key={car.slug} car={car} />)}
+          {cars.map((car) => <CarCard key={car.id} car={car} />)}
         </div>
-      ) : (
+      )}
+
+      {!loading && cars.length === 0 && (
         <p className="empty">
           目前沒有符合條件的車輛。可以清除篩選，或直接
           <a href={`tel:${site.phone}`}>來電詢問</a>
           想找的車款。
         </p>
+      )}
+
+      {hasMore && (
+        <div className="more-link">
+          <button className="btn btn-light" onClick={loadMore} disabled={loading}>
+            {loading ? '載入中…' : '載入更多'}
+          </button>
+        </div>
       )}
     </>
   );
