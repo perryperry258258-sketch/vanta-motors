@@ -2,8 +2,9 @@ import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Gallery from '../../../components/Gallery';
+import ContactBar from '../../../components/ContactBar';
 import { getCarBySlug } from '../../../lib/cars';
-import { site, formatPrice } from '../../../lib/site';
+import { formatPrice } from '../../../lib/site';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,15 +59,7 @@ export default async function CarPage({ params }) {
         <Link href="/cars" className="back-link">返回在售車輛</Link>
       </div>
 
-      <div className="contact-bar">
-        <div className="contact-bar-inner">
-          <p>對這台車有興趣？</p>
-          <div className="contact-buttons">
-            <a href={`tel:${site.phone}`} className="btn btn-dark">電話詢問</a>
-            <a href={site.lineUrl} className="btn btn-light" target="_blank" rel="noopener noreferrer">LINE 詢問</a>
-          </div>
-        </div>
-      </div>
+      <ContactBar carId={car.id} />
     </main>
   );
-}
+        }
