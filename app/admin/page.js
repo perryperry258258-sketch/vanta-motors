@@ -7,6 +7,7 @@ import { getSupabase, photoUrl, BUCKET } from '../../lib/supabase';
 
 const STATUS_LABEL = { published: '已上架', draft: '草稿', unlisted: '已下架' };
 const TABS = [['all', '全部'], ['published', '已上架'], ['draft', '草稿'], ['unlisted', '已下架']];
+const SORTS = [['new', '最新'], ['views', '瀏覽最多'], ['inquiries', '詢問最多']];
 
 export default function AdminPage() {
   return (
@@ -16,24 +17,37 @@ export default function AdminPage() {
   );
 }
 
+function normalize(car) {
+  const s = Array.isArray(car.car_stats) ? car.car_stats[0] : car.car_stats;
+  return {
+    ...car,
+    stats: {
+      views: (s && s.views) || 0,
+      phone: (s && s.phone_clicks) || 0,
+      line: (s && s.line_clicks) || 0,
+    },
+  };
+}
+
 function CarList() {
   const [cars, setCars] = useState(null);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
   const [tab, setTab] = useState('all');
+  const [sort, setSort] = useState('new');
   const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
     (async () => {
       const { data, error } = await getSupabase()
         .from('cars')
-        .select('id, slug, title, year, status, created_at, car_photos(path, sort_order)')
+        .select('id, slug, title, year, status, created_at, car_photos(path, sort_order), car_stats(views, phone_clicks, line_clicks)')
         .order('created_at', { ascending: false })
         .order('sort_order', { referencedTable: 'car_photos' })
         .limit(1, { referencedTable: 'car_photos' })
         .range(0, 1999);
       if (error) setError('讀取車輛失敗：' + error.message);
-      else setCars(data);
+      else setCars(data.map(normalize));
     })();
   }, []);
 
@@ -45,10 +59,17 @@ function CarList() {
 
   const list = useMemo(() => {
     const k = q.trim().toLowerCase();
-    return (cars || []).filter(
+    const filtered = (cars || []).filter(
       (c) => (tab === 'all' || c.status === tab) && (!k || c.title.toLowerCase().includes(k))
     );
-  }, [cars, q, tab]);
+    if (sort === 'views') return [...filtered].sort((a, b) => b.stats.views - a.stats.views);
+    if (sort === 'inquiries') {
+      return [...filtered].sort(
+        (a, b) => b.stats.phone + b.stats.line - (a.stats.phone + a.stats.line)
+      );
+    }
+    return filtered;
+  }, [cars, q, tab, sort]);
 
   async function setStatus(car, status) {
     setBusyId(car.id);
@@ -92,6 +113,14 @@ function CarList() {
         ))}
       </div>
 
+      <div className="tabs" style={{ marginTop: -4 }}>
+        {SORTS.map(([k, label]) => (
+          <button key={k} aria-pressed={sort === k} onClick={() => setSort(k)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       {error && <p className="admin-error">{error}</p>}
       {cars === null && !error && <p className="admin-muted">載入中…</p>}
       {cars && list.length === 0 && (
@@ -116,6 +145,9 @@ function CarList() {
                     {car.year || '年份未填'}
                     <span className={`status status-${car.status}`}>{STATUS_LABEL[car.status]}</span>
                   </p>
+                  <p className="car-row-meta">
+                    瀏覽 {car.stats.views}　電話 {car.stats.phone}　LINE {car.stats.line}
+                  </p>
                   <div className="car-row-actions">
                     <Link href={`/admin/edit?id=${car.id}`}>編輯</Link>
                     {car.status === 'published' ? (
@@ -136,4 +168,4 @@ function CarList() {
       )}
     </>
   );
-                      }
+                  }
