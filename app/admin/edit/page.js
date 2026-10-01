@@ -6,9 +6,10 @@ import AdminShell from '../../../components/admin/AdminShell';
 import { getSupabase, photoUrl, BUCKET } from '../../../lib/supabase';
 import { parseTitle, makeSlug } from '../../../lib/parseTitle';
 import { compressImage } from '../../../lib/image';
+import { hasCJK } from '../../../lib/i18n';
 
 const EMPTY = {
-  title: '', brand: '', model: '', year: '', color: '',
+  title: '', title_en: '', brand: '', model: '', year: '', color: '',
   price: '', price_max: '', mileage: '', description: '', status: 'published',
 };
 
@@ -65,6 +66,7 @@ function Editor() {
       }
       setForm({
         title: data.title || '',
+        title_en: data.title_en || '',
         brand: data.brand || '',
         model: data.model || '',
         year: data.year ?? '',
@@ -153,6 +155,7 @@ function Editor() {
     const supabase = getSupabase();
     const row = {
       title,
+      title_en: String(form.title_en).replace(/\s+/g, ' ').trim() || null,
       brand: String(form.brand).trim() || null,
       model: String(form.model).trim() || null,
       year: num(form.year),
@@ -175,7 +178,7 @@ function Editor() {
       } else {
         const { data, error } = await supabase
           .from('cars')
-          .insert({ ...row, slug: makeSlug(title) })
+          .insert({ ...row, slug: makeSlug(row.title_en || title) })
           .select('id')
           .single();
         if (error) throw error;
@@ -228,6 +231,8 @@ function Editor() {
 
   if (loading) return <p className="admin-muted">載入中…</p>;
 
+  const needsEnglish = hasCJK(form.title) && !String(form.title_en).trim();
+
   return (
     <>
       <h1>{id ? '編輯車輛' : '新增車輛'}</h1>
@@ -275,6 +280,17 @@ function Editor() {
       </Field>
       <button type="button" className="text-btn" onClick={autofill}>從車名自動帶入品牌、車型、年份</button>
 
+      <Field
+        label="English Title（選填）"
+        warn={needsEnglish && '車名含中文，建議填寫英文車名，英文版網站才會顯示得自然'}
+      >
+        <input
+          value={form.title_en}
+          onChange={(e) => update('title_en', e.target.value)}
+          placeholder="車名已是英文就不用填"
+        />
+      </Field>
+
       <div className="field-grid">
         <Field label="品牌" warn={unsure.includes('brand') && UNSURE_HINT}>
           <input value={form.brand} onChange={(e) => update('brand', e.target.value)} />
@@ -288,19 +304,19 @@ function Editor() {
         <Field label="顏色（選填）">
           <input value={form.color} onChange={(e) => update('color', e.target.value)} />
         </Field>
-        <Field label="價格最低（萬，選填）">
+        <Field label="行情最低（萬，選填）">
           <input type="number" inputMode="numeric" value={form.price} onChange={(e) => update('price', e.target.value)} />
         </Field>
-        <Field label="價格最高（萬，選填）">
+        <Field label="行情最高（萬，選填）">
           <input type="number" inputMode="numeric" value={form.price_max} onChange={(e) => update('price_max', e.target.value)} />
         </Field>
         <Field label="里程（公里，選填）">
           <input type="number" inputMode="numeric" value={form.mileage} onChange={(e) => update('mileage', e.target.value)} />
         </Field>
       </div>
-      <p className="admin-muted">價格只填一格會顯示單一價格，兩格都空白會顯示「歡迎洽詢」。</p>
+      <p className="admin-muted">行情只填一格會顯示單一價格，兩格都空白會顯示「歡迎洽詢」。</p>
 
-      <Field label="簡短介紹（選填）">
+      <Field label="簡短介紹（選填，只顯示在中文版）">
         <textarea value={form.description} onChange={(e) => update('description', e.target.value)} />
       </Field>
 
@@ -324,4 +340,4 @@ function Editor() {
       </div>
     </>
   );
-            }
+        }
