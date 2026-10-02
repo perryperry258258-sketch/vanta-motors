@@ -164,6 +164,9 @@ function Pricing() {
     const errors = [];
     let inserted = 0;
     let updated = 0;
+    let replaced = 0;
+    let removed = 0;
+    let fileDupes = 0;
     try {
       const rows = parseCSV(await file.text());
       if (rows.length < 2) throw new Error('檔案沒有資料');
@@ -183,7 +186,18 @@ function Pricing() {
         (b.buyback_models || []).forEach((m) => { modelByKey[`${b.id}|${m.name.toLowerCase()}`] = m.id; });
       });
       const ruleIds = new Set(db.rules.map((r) => r.id));
-      const inserts = [];
+
+      // 重複判斷：同一個車型＋同一個基準年份＋同樣的里程範圍，視為同一筆行情
+      const dupKey = (r) => [r.model_id, r.reference_year, r.mileage_min ?? '', r.mileage_max ?? ''].join('|');
+      const existingByKey = {};
+      [...db.rules]
+        .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+        .forEach((r) => {
+          const key = dupKey(r);
+          (existingByKey[key] = existingByKey[key] || []).push(r.id);
+        });
+
+      const pending = new Map();
 
       for (let i = 1; i < rows.length; i++) {
         const line = i + 1;
@@ -239,8 +253,34 @@ function Pricing() {
           const { error } = await sb.from('pricing_rules').update(rec).eq('id', id);
           if (error) errors.push(`第 ${line} 列：更新失敗（${error.message}）`);
           else updated++;
-        } else {
-          inserts.push({ line, rec });
+          continue;
+        }
+
+        // 同一個檔案裡重複的列：以後面的為準
+        const key = dupKey(rec);
+        if (pending.has(key)) fileDupes++;
+        pending.set(key, { line, rec });
+      }
+
+      const inserts = [];
+      for (const [key, item] of pending) {
+        const olds = existingByKey[key] || [];
+        if (!olds.length) {
+          inserts.push(item);
+          continue;
+        }
+        // 資料庫已經有同一筆：用新資料取代最新的那筆，其餘舊的重複資料刪除
+        const [keep, ...extra] = olds;
+        const { error } = await sb.from('pricing_rules').update(item.rec).eq('id', keep);
+        if (error) {
+          errors.push(`第 ${item.line} 列：取代舊資料失敗（${error.message}）`);
+          continue;
+        }
+        replaced++;
+        if (extra.length) {
+          const { error: delErr } = await sb.from('pricing_rules').delete().in('id', extra);
+          if (delErr) errors.push(`第 ${item.line} 列：刪除舊的重複資料失敗（${delErr.message}）`);
+          else removed += extra.length;
         }
       }
 
@@ -253,7 +293,31 @@ function Pricing() {
     } catch (e) {
       errors.push(e.message || String(e));
     }
-    setReport({ inserted, updated, errors });
+    setReport({ inserted, updated, replaced, removed, fileDupes, errors });
+    setBusy(false);
+    load();
+  }
+
+  async function cleanDuplicates() {
+    const groups = {};
+    [...db.rules]
+      .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+      .forEach((r) => {
+        const key = [r.model_id, r.reference_year, r.mileage_min ?? '', r.mileage_max ?? ''].join('|');
+        (groups[key] = groups[key] || []).push(r.id);
+      });
+    const extra = Object.values(groups).flatMap((ids) => ids.slice(1));
+    if (!extra.length) return alert('目前沒有重複的行情資料。');
+    if (!confirm(`找到 ${extra.length} 筆重複的舊資料（同車型、同基準年份、同里程範圍），每組只保留最新的一筆，其餘刪除？`)) return;
+    setBusy(true);
+    const sb = getSupabase();
+    for (let i = 0; i < extra.length; i += 100) {
+      const { error } = await sb.from('pricing_rules').delete().in('id', extra.slice(i, i + 100));
+      if (error) {
+        alert('刪除失敗：' + error.message);
+        break;
+      }
+    }
     setBusy(false);
     load();
   }
@@ -329,10 +393,12 @@ function Pricing() {
       <div className="admin-card">
         <h3>CSV 匯入／匯出</h3>
         <p className="admin-muted">
-          先匯出一份當範本，用 Excel 或 Google 試算表編輯後再匯入。有 id 的列會更新原資料，沒有 id 的列會新增；品牌或車型不存在會自動建立。
+          先匯出一份當範本，用 Excel 或 Google 試算表編輯後再匯入。品牌或車型不存在會自動建立。
+          同車型、同基準年份、同里程範圍的資料視為重複：匯入時會用新資料取代舊的，不會重複新增。
         </p>
         <div className="inline-actions">
           <button onClick={exportCSV}>匯出 CSV</button>
+          <button onClick={cleanDuplicates} disabled={busy}>清除重複資料</button>
           <label>
             {busy ? '匯入中…' : '匯入 CSV'}
             <input
@@ -349,7 +415,9 @@ function Pricing() {
         </div>
         {report && (
           <div className="result-box">
-            新增 {report.inserted} 筆、更新 {report.updated} 筆
+            新增 {report.inserted} 筆、取代舊資料 {report.replaced + report.updated} 筆
+            {report.removed > 0 && `、刪除重複舊資料 ${report.removed} 筆`}
+            {report.fileDupes > 0 && `、檔案內重複 ${report.fileDupes} 列（以後面的為準）`}
             {report.errors.length > 0 && (
               <>
                 ，{report.errors.length} 個問題：
@@ -479,4 +547,4 @@ function Simulator({ db, lookup }) {
       )}
     </div>
   );
-                  }
+                                                   }
