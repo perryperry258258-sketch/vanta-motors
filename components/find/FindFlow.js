@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { site } from '../../lib/site';
 import { findDict } from '../../lib/i18n-find';
 import { formatDate } from '../../lib/buyback/format';
+import EstimateBreakdown from '../EstimateBreakdown';
 import {
   MILEAGE_OPTIONS, BUDGET_OPTIONS, FUEL_OPTIONS, BODY_OPTIONS, TIER_LABEL,
   parseBudget, budgetText, buildFindMessage,
@@ -100,6 +101,11 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
                 {t.confidence}{t.confidenceLabel[result.confidence] || t.confidenceLabel.low}
                 {result.updatedAt ? `｜${t.updated}${formatDate(lang, result.updatedAt)}` : ''}
               </p>
+              <EstimateBreakdown
+                lang={lang}
+                b={result.breakdown}
+                extra={lang === 'en' ? 'Market reference range = estimated market value ±8%' : '市場參考行情 ＝ 預估市場行情 ±8%'}
+              />
             </>
           ) : (
             <>
@@ -214,4 +220,4 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
       <button className="btn btn-dark sell-submit" disabled={busy}>{busy ? t.calculating : t.submit}</button>
     </form>
   );
-                                         }
+                     }
