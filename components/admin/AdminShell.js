@@ -12,6 +12,7 @@ import '../../styles/deal.css';
 const NAV = [
   ['/admin/overview', '營運總覽', ['admin']],
   ['/admin/cases', '案件', ['admin', 'staff']],
+  ['/admin/find', '找車需求', ['admin', 'staff']],
   ['/admin/customers', '客戶', ['admin', 'staff']],
   ['/admin', '車輛管理', ['admin', 'staff']],
   ['/admin/buyback/leads', '收車線索', ['admin', 'staff']],
@@ -134,4 +135,4 @@ export function Login({ title = '後台登入' }) {
       </form>
     </main>
   );
-    }
+}
