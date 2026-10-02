@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminShell, { useRole } from '../../../../components/admin/AdminShell';
+import DealPanel from '../../../../components/admin/DealPanel';
 import { getSupabase } from '../../../../lib/supabase';
 import {
   CASE_STATUS, STATUS_LABEL, TYPE_LABEL, SOURCE_LABEL, CLOSED,
@@ -208,6 +209,8 @@ function CaseDetail() {
         />
       </div>
 
+      {role === 'admin' && <DealPanel caseRow={c} onChange={load} />}
+
       <div className="case-section">
         <h3>新增紀錄</h3>
         <textarea placeholder="例如：已回覆客戶里程與車況，約週六 14:00 看車" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -245,4 +248,4 @@ function CaseDetail() {
       )}
     </>
   );
-  }
+                                                                         }
