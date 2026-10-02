@@ -2,21 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { getSupabase } from '../../lib/supabase';
 import '../../styles/buyback-admin.css';
+import '../../styles/crm.css';
 
+// roles: 這個項目哪些角色看得到
 const NAV = [
-  ['/admin', '車輛管理'],
-  ['/admin/buyback', '收車總覽'],
-  ['/admin/buyback/leads', '收車線索'],
-  ['/admin/buyback/pricing', '行情規則'],
-  ['/admin/buyback/catalog', '品牌與係數'],
+  ['/admin/cases', '案件', ['admin', 'staff']],
+  ['/admin/customers', '客戶', ['admin', 'staff']],
+  ['/admin', '車輛管理', ['admin', 'staff']],
+  ['/admin/buyback/leads', '收車線索', ['admin', 'staff']],
+  ['/admin/partners', '車源與帳號', ['admin']],
+  ['/admin/buyback', '收車總覽', ['admin']],
+  ['/admin/buyback/pricing', '行情規則', ['admin']],
+  ['/admin/buyback/catalog', '品牌與係數', ['admin']],
 ];
 
-export default function AdminShell({ children }) {
+const RoleContext = createContext({ role: null, profile: null, session: null });
+
+export function useRole() {
+  return useContext(RoleContext);
+}
+
+export default function AdminShell({ children, adminOnly = false }) {
   const pathname = usePathname();
   const [session, setSession] = useState(undefined);
+  const [profile, setProfile] = useState(undefined);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -25,23 +37,55 @@ export default function AdminShell({ children }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  if (session === undefined) {
+  useEffect(() => {
+    if (!session) {
+      setProfile(session === null ? null : undefined);
+      return;
+    }
+    getSupabase()
+      .from('profiles')
+      .select('role, display_name, partner_id')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data || null));
+  }, [session]);
+
+  if (session === undefined || (session && profile === undefined)) {
     return <main className="admin"><p className="admin-muted">載入中…</p></main>;
   }
   if (!session) return <Login />;
 
+  const signOut = () => getSupabase().auth.signOut();
+  const role = profile && profile.role;
+
+  if (!role || role === 'partner') {
+    return (
+      <main className="admin">
+        <h1>{role === 'partner' ? '合作夥伴專區即將開放' : '這個帳號尚未設定權限'}</h1>
+        <p className="admin-muted">
+          {role === 'partner' ? '您的案件與成交回報頁面會在下一階段開放。' : '請聯絡 VANTA 管理員設定帳號權限。'}
+        </p>
+        <button className="btn btn-light btn-sm" style={{ marginTop: 20 }} onClick={signOut}>登出</button>
+      </main>
+    );
+  }
+
+  const blocked = adminOnly && role !== 'admin';
+
   return (
-    <main className="admin">
-      <div className="admin-top">
-        <nav className="admin-nav">
-          {NAV.map(([href, label]) => (
-            <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>{label}</Link>
-          ))}
-        </nav>
-        <button className="btn btn-light btn-sm" onClick={() => getSupabase().auth.signOut()}>登出</button>
-      </div>
-      {children}
-    </main>
+    <RoleContext.Provider value={{ role, profile, session }}>
+      <main className="admin">
+        <div className="admin-top">
+          <nav className="admin-nav">
+            {NAV.filter(([, , roles]) => roles.includes(role)).map(([href, label]) => (
+              <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>{label}</Link>
+            ))}
+          </nav>
+          <button className="btn btn-light btn-sm" onClick={signOut}>登出</button>
+        </div>
+        {blocked ? <p className="admin-error">這個頁面只有管理員可以使用。</p> : children}
+      </main>
+    </RoleContext.Provider>
   );
 }
 
