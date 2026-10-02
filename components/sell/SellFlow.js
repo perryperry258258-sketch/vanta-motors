@@ -8,11 +8,17 @@ import { compressImage } from '../../lib/image';
 import { buildLineMessage, lineChatUrl, formatNT, formatKm, formatDate } from '../../lib/buyback/format';
 import EstimateBreakdown from '../EstimateBreakdown';
 
+const PRICE_LABELS = {
+  zh: { buyback: '車商建議收購價', market: '市場行情價' },
+  en: { buyback: 'Dealer Buyback Estimate', market: 'Market Range' },
+};
+
 const postJSON = (url, data, extra = {}) =>
   fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), ...extra });
 
 export default function SellFlow({ lang, brands, minYear, maxYear }) {
   const t = dict[lang].sell;
+  const P = PRICE_LABELS[lang] || PRICE_LABELS.zh;
   const [brandId, setBrandId] = useState('');
   const [modelId, setModelId] = useState('');
   const [year, setYear] = useState('');
@@ -132,8 +138,11 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
         <div className="estimate-box">
           {hasRange ? (
             <>
-              <p className="estimate-range-label">{t.range}</p>
+              <p className="estimate-range-label">{P.buyback}</p>
               <p className="estimate-range">NT${formatNT(result.low)} – {formatNT(result.high)}</p>
+              {result.market && (
+                <p className="estimate-sub">{P.market}　NT${formatNT(result.market.low)} – {formatNT(result.market.high)}</p>
+              )}
               {result.quality === 'nearest' && <p className="estimate-limited">{t.limited}</p>}
               <p className="estimate-note">{t.disclaimer}</p>
               {result.updatedAt && (
@@ -320,4 +329,4 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
       </p>
     </form>
   );
-          }
+            }
