@@ -1,0 +1,19 @@
+/* 首頁三個入口：同樣大小、同樣份量 */
+.hero-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 520px; }
+.hero-actions .btn { padding: 0 8px; font-size: 14px; letter-spacing: .04em; }
+@media (min-width: 900px) {
+  .hero-actions { width: auto; grid-template-columns: repeat(3, auto); }
+  .hero-actions .btn { padding: 0 28px; font-size: 15px; }
+}
+
+/* 我要找車 */
+.find-more { display: grid; gap: 22px; padding: 20px; border-radius: 16px; background: var(--paper); }
+.find-more .sell-chips button { background: var(--white); }
+.find-more .sell-chips button[aria-pressed="true"] { background: var(--black); }
+.find-matches { display: grid; gap: 12px; margin-top: 20px; }
+.find-match { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 16px; }
+.find-match-img { aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; background: var(--paper); }
+.find-match-img img { width: 100%; height: 100%; object-fit: cover; }
+.find-match h4 { margin: 4px 0 6px; font-size: 16px; font-weight: 500; line-height: 1.4; }
+.find-tier { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 12px; background: var(--paper); color: var(--ink2); }
+.find-tier-high { background: var(--black); color: var(--white); }
