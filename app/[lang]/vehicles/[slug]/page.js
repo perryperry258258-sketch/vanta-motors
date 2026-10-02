@@ -79,7 +79,7 @@ export default async function VehiclePage({ params }) {
         <Link href={`/${lang}/vehicles`} className="back-link">{t.car.back}</Link>
       </div>
 
-      <ContactBar carId={car.id} lang={lang} />
+      <ContactBar carId={car.id} title={title} lang={lang} />
     </main>
   );
-}
+          }
