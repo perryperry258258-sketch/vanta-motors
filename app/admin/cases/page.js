@@ -18,6 +18,7 @@ export default function CasesPage() {
 }
 
 const TABS = [
+  ['unread', '待回覆'],
   ['open', '進行中'],
   ['attention', '需要注意'],
   ['won', '成交'],
@@ -56,6 +57,7 @@ function Cases() {
   const counts = useMemo(() => {
     const list = cases || [];
     return {
+      unread: list.filter((c) => c.unread).length,
       open: list.filter((c) => !CLOSED.includes(c.status)).length,
       attention: list.filter((c) => isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell')).length,
       won: list.filter((c) => c.status === 'won').length,
@@ -69,6 +71,7 @@ function Cases() {
     const k = q.trim().toLowerCase();
     return (cases || [])
       .filter((c) => {
+        if (tab === 'unread') return c.unread;
         if (tab === 'open') return !CLOSED.includes(c.status);
         if (tab === 'attention') return isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell');
         if (tab === 'won') return c.status === 'won';
@@ -114,7 +117,7 @@ function Cases() {
 
       {tab === 'inquiries' ? (
         <>
-          <p className="admin-muted">客人在車輛頁按了 LINE 詢問。等客人在 LINE 傳訊息後，對照車輛編號建立案件。</p>
+          <p className="admin-muted">客人在車輛頁按了 LINE 詢問。客人在 LINE 送出訊息後會自動建立案件；這裡是還沒傳訊息的詢問。</p>
           {inquiries.length === 0 && <p className="admin-muted">目前沒有待處理的網站詢問。</p>}
           {inquiries.map((i) => (
             <div className="case-card" key={i.id}>
@@ -147,6 +150,7 @@ function Cases() {
                 最後進度 {shortDate(c.last_activity_at)}
               </p>
               <div className="case-flags">
+                {c.unread && <span className="badge badge-new">客戶有新訊息</span>}
                 {isStale(c) && <span className="badge badge-warn">超過 2 天沒有進度</span>}
                 {!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell' && <span className="badge badge-warn">尚未指定車源</span>}
               </div>
@@ -156,4 +160,4 @@ function Cases() {
       )}
     </>
   );
-            }
+                    }
