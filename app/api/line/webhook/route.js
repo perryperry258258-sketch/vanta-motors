@@ -76,6 +76,16 @@ async function handle(db, event) {
   const customer = await upsertCustomer(db, userId);
   if (!customer) return;
 
+  // 0. 網站「我要找車」帶來的訊息：建立找車案件
+  const findRefMatch = body.match(/(?:找車編號|Find Ref)\s*[:：]?\s*([0-9A-F]{8})/i);
+  if (findRefMatch) {
+    const linked = await linkFind(db, customer, findRefMatch[1].toUpperCase(), body);
+    if (linked) {
+      await reply(event.replyToken, [text(`收到您的找車需求，VANTA 會開始協助尋找合適的車輛，有消息會在這裡通知您。\n\n案件編號：${linked.case_no}`)]);
+      return;
+    }
+  }
+
   // 1. 網站賣車估價帶來的訊息：對應到已建立的收車案件
   const estRef = body.match(/(?:估價編號|Estimate Ref)\s*[:：]?\s*([0-9A-F]{8})/i);
   if (estRef) {
@@ -138,6 +148,43 @@ async function linkBuyback(db, customer, ref, body) {
   const { data: c } = await db.from('cases').select('id, case_no, customer_id').eq('buyback_lead_id', lead.id).maybeSingle();
   if (!c) return null;
   if (!c.customer_id) await db.from('cases').update({ customer_id: customer.id, source: 'line' }).eq('id', c.id);
+  await addEvent(db, c.id, 'customer_msg', body);
+  await markUnread(db, c.id);
+  return c;
+}
+
+async function linkFind(db, customer, ref, body) {
+  const since = new Date(Date.now() - 14 * 864e5).toISOString();
+  const { data: reqs } = await db
+    .from('find_car_requests')
+    .select('id, case_id, brand, model, year_from')
+    .gte('created_at', since)
+    .limit(2000);
+  const fr = (reqs || []).find((r) => compact(r.id).startsWith(ref));
+  if (!fr) return null;
+
+  let c = null;
+  if (fr.case_id) {
+    const { data } = await db.from('cases').select('id, case_no, customer_id').eq('id', fr.case_id).maybeSingle();
+    c = data;
+    if (c && !c.customer_id) await db.from('cases').update({ customer_id: customer.id }).eq('id', c.id);
+  }
+  if (!c) {
+    const { data } = await db
+      .from('cases')
+      .insert({
+        type: 'find',
+        status: 'new',
+        source: 'website',
+        customer_id: customer.id,
+        subject: `${fr.year_from ? `${fr.year_from} ` : ''}${fr.brand} ${fr.model}`,
+        customer_request: body,
+      })
+      .select('id, case_no')
+      .single();
+    c = data;
+  }
+  await db.from('find_car_requests').update({ case_id: c.id, customer_id: customer.id, updated_at: new Date().toISOString() }).eq('id', fr.id);
   await addEvent(db, c.id, 'customer_msg', body);
   await markUnread(db, c.id);
   return c;
