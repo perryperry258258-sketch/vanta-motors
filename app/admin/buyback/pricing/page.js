@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminShell from '../../../../components/admin/AdminShell';
 import { getSupabase } from '../../../../lib/supabase';
-import { runEstimate, taiwanYear, DEFAULT_SETTINGS } from '../../../../lib/buyback/engine';
+import { runEstimate, taiwanYear, DEFAULT_SETTINGS, findModelFactor, findCondition } from '../../../../lib/buyback/engine';
 import { RULE_COLUMNS, parseCSV, toCSV, parseBool } from '../../../../lib/buyback/csv';
 
 export default function PricingPage() {
@@ -36,12 +36,14 @@ function Pricing() {
 
   async function load() {
     const sb = getSupabase();
-    const [brands, rules, dep, km, settings] = await Promise.all([
+    const [brands, rules, dep, km, settings, mfs, conds] = await Promise.all([
       sb.from('buyback_brands').select('id, name, brand_factor, active, sort_order, buyback_models(id, name, active, sort_order)').order('sort_order').order('name'),
       sb.from('pricing_rules').select('*').order('updated_at', { ascending: false }).limit(5000),
       sb.from('depreciation_rules').select('*').eq('active', true),
       sb.from('mileage_rules').select('*').eq('active', true),
       sb.from('buyback_settings').select('*').eq('id', 1).maybeSingle(),
+      sb.from('model_factors').select('brand_id, model, factor'),
+      sb.from('condition_factors').select('*').order('sort_order'),
     ]);
     const err = brands.error || rules.error || dep.error || km.error;
     if (err) return setError('讀取失敗：' + err.message);
@@ -50,6 +52,8 @@ function Pricing() {
       rules: rules.data,
       dep: dep.data,
       km: km.data,
+      modelFactors: mfs.data || [],
+      conditions: conds.data || [],
       settings: { ...DEFAULT_SETTINGS, ...(settings.data || {}) },
     });
   }
@@ -267,7 +271,7 @@ function Pricing() {
         <button className="btn btn-dark btn-sm" onClick={() => startEdit(null)}>＋ 新增行情</button>
       </div>
       <p className="admin-muted">
-        每筆規則代表「某車型、從某年份開始」的基準價格。估價＝基準價格 × 年份係數 × 里程係數 × 品牌係數。
+        基準價格請填「台灣新車建議售價」。預估市場行情＝新車價 × 年份 × 里程 × 品牌 × 車款 × 車況係數；收購行情＝市場行情 × 估價設定的區間。
       </p>
 
       {staleCount > 0 && (
@@ -401,31 +405,36 @@ function Simulator({ db, lookup }) {
   const [modelId, setModelId] = useState('');
   const [year, setYear] = useState(String(taiwanYear() - 3));
   const [km, setKm] = useState('42000');
+  const [cond, setCond] = useState('normal');
   const brand = lookup.brandById[brandId];
+  const model = lookup.modelById[modelId];
 
   let result = null;
-  if (modelId && year && km !== '') {
+  if (modelId && year) {
     result = runEstimate({
       rules: db.rules.filter((r) => r.model_id === modelId),
       brand,
       year: Number(year),
-      mileage: Number(km),
+      mileage: km === '' ? null : Number(km),
       depreciation: db.dep,
       mileageRules: db.km,
       settings: db.settings,
       currentYear: taiwanYear(),
+      modelFactor: findModelFactor(db.modelFactors.filter((m) => m.brand_id === brandId), model ? model.name : ''),
+      condition: findCondition(db.conditions, cond),
     });
   }
+  const b = result && result.breakdown;
 
   return (
     <div className="admin-card">
       <h3>估價試算</h3>
-      <p className="admin-muted">用目前的規則試算，確認數字合理再讓客人使用。試算不會留下紀錄。</p>
+      <p className="admin-muted">用目前的規則和係數試算，確認數字合理再讓客人使用。試算不會留下紀錄。</p>
       <div className="field-grid">
         <label className="field"><span>品牌</span>
           <select value={brandId} onChange={(e) => { setBrandId(e.target.value); setModelId(''); }}>
             <option value="">選擇品牌</option>
-            {db.brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            {db.brands.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
           </select>
         </label>
         <label className="field"><span>車型</span>
@@ -435,25 +444,39 @@ function Simulator({ db, lookup }) {
           </select>
         </label>
         <label className="field"><span>年份</span><input type="number" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} /></label>
-        <label className="field"><span>里程（km）</span><input type="number" inputMode="numeric" value={km} onChange={(e) => setKm(e.target.value)} /></label>
+        <label className="field"><span>里程（km，空白＝不計）</span><input type="number" inputMode="numeric" value={km} onChange={(e) => setKm(e.target.value)} /></label>
+        <label className="field"><span>車況</span>
+          <select value={cond} onChange={(e) => setCond(e.target.value)}>
+            {(db.conditions.length ? db.conditions : [{ key: 'normal', label_zh: '正常' }]).map((c) => (
+              <option key={c.key} value={c.key}>{c.label_zh}</option>
+            ))}
+          </select>
+        </label>
       </div>
       {result && (
         <div className="result-box">
           {result.quality === 'none' ? (
-            '這個車型沒有可用的行情規則，客人會看到「目前尚無足夠行情資料」。'
+            '缺少新車參考價格：這個車型還沒有行情規則，客人會看到「目前尚無足夠行情資料」。'
           ) : result.method === 'manual' ? (
-            <>使用固定區間：NT${nt(result.low)} – {nt(result.high)}</>
+            <>使用固定收購區間：NT${nt(result.low)} – {nt(result.high)}</>
           ) : (
             <>
-              {nt(result.log.base_price)} × 年份 {result.log.year_factor} × 里程 {result.log.mileage_factor} × 品牌 {result.log.brand_factor}
-              ＝ {nt(result.center)}
-              <br />
-              客人看到：NT${nt(result.low)} – {nt(result.high)}
-              {result.quality === 'nearest' && '（會標示「資料有限」）'}
+              <div className="money-row"><span>參考新車價</span><span>NT${nt(b.referencePrice)}</span></div>
+              <div className="money-row"><span>車齡</span><span>{b.age} 年</span></div>
+              <div className="money-row"><span>年份係數</span><span>{b.yearFactor.toFixed(2)}</span></div>
+              <div className="money-row"><span>里程</span><span>{b.mileage === null ? '未提供' : `${nt(b.mileage)} km`}</span></div>
+              <div className="money-row"><span>里程係數</span><span>{b.mileageFactor.toFixed(2)}</span></div>
+              <div className="money-row"><span>品牌係數</span><span>{b.brandFactor.toFixed(2)}</span></div>
+              <div className="money-row"><span>車款係數</span><span>{b.modelFactor.toFixed(2)}</span></div>
+              <div className="money-row"><span>車況</span><span>{b.conditionLabelZh}</span></div>
+              <div className="money-row"><span>車況係數</span><span>{b.conditionFactor.toFixed(2)}</span></div>
+              <div className="money-row money-total"><span>預估市場行情</span><span>NT${nt(b.market)}</span></div>
+              <div className="money-row"><span>預估收購行情（客人在賣車頁看到）</span><span>NT${nt(result.low)} – {nt(result.high)}</span></div>
+              {result.quality === 'nearest' && <p className="admin-muted">這個年份沒有完全對應的規則，客人會看到「資料有限」。</p>}
             </>
           )}
         </div>
       )}
     </div>
   );
-  }
+                  }
