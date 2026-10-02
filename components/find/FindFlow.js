@@ -103,7 +103,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
             </>
           ) : (
             <>
-              <p className="estimate-nodata">{t.noRange}</p>
+              <p className="estimate-nodata">{result.year ? t.noRange : t.pickYear}</p>
               <p className="estimate-note">{t.noRangeNote}</p>
             </>
           )}
@@ -214,4 +214,4 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
       <button className="btn btn-dark sell-submit" disabled={busy}>{busy ? t.calculating : t.submit}</button>
     </form>
   );
-          }
+                                         }
