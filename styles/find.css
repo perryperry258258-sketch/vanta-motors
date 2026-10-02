@@ -30,3 +30,6 @@
 .breakdown .breakdown-total { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); font-weight: 500; }
 .breakdown .breakdown-total dt { color: var(--black); }
 .breakdown-extra { margin-top: 8px; font-size: 12px; line-height: 1.8; color: var(--mute); }
+
+/* 第二個價格（市場行情價／預估對客售價） */
+.estimate-sub { margin-top: 10px; font-size: 15px; color: var(--ink2); font-variant-numeric: tabular-nums; }
