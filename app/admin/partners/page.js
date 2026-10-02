@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminShell, { useRole } from '../../../components/admin/AdminShell';
 import { getSupabase } from '../../../lib/supabase';
+import { site } from '../../../lib/site';
 
 export default function PartnersPage() {
   return (
@@ -22,6 +23,7 @@ function Partners() {
   const [editing, setEditing] = useState(null);
   const [account, setAccount] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [bind, setBind] = useState(null);
 
   async function load() {
     const sb = getSupabase();
@@ -71,12 +73,23 @@ function Partners() {
     if (!res.ok) throw new Error(data.error || '操作失敗');
   }
 
+  async function makeBindCode(p) {
+    const res = await fetch('/api/admin/line', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'bind_code', partnerId: p.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(data.error || '產生失敗');
+    setBind({ partnerId: p.id, name: p.name, code: data.code });
+  }
+
   async function createAccount() {
     setBusy(true);
     try {
       await callAccounts('POST', account);
       setAccount(null);
-      alert('帳號已建立，請把 Email 和密碼交給對方，登入網址是 /admin');
+      alert('帳號已建立，請把 Email 和密碼交給對方，登入網址是 /partner');
       load();
     } catch (e) {
       alert(e.message);
@@ -143,11 +156,23 @@ function Partners() {
             {[p.phone, p.line_id && `LINE：${p.line_id}`].filter(Boolean).join('｜') || '未填聯絡方式'}
             <br />
             車輛 {(p.cars || []).length} 台｜進行中案件 {(p.cases || []).filter((c) => !['won', 'lost', 'cancelled'].includes(c.status)).length} 件
+            <br />
+            {p.line_user_id ? <span className="badge badge-ok">LINE 已綁定，轉交案件會自動通知</span> : <span className="badge badge-mid">LINE 未綁定</span>}
           </p>
           <div className="inline-actions">
             <button onClick={() => setEditing({ id: p.id, ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, p[k] ?? EMPTY[k]])) })}>編輯</button>
             <button onClick={() => setAccount({ role: 'partner', partnerId: p.id, displayName: p.name, email: '', password: '' })}>建立登入帳號</button>
+            <button onClick={() => makeBindCode(p)}>{p.line_user_id ? '重新綁定 LINE' : '綁定 LINE'}</button>
           </div>
+          {bind && bind.partnerId === p.id && (
+            <div className="result-box">
+              請 {bind.name} 先加入 VANTA 官方帳號好友（{site.lineId}），再傳送這組綁定碼：
+              <strong style={{ display: 'block', margin: '8px 0', fontSize: 20, letterSpacing: '.08em' }}>{bind.code}</strong>
+              <div className="inline-actions">
+                <button onClick={() => navigator.clipboard && navigator.clipboard.writeText(`請加入 VANTA MOTORS 官方帳號：${site.lineUrl}\n加入後傳送這組綁定碼：${bind.code}`)}>複製給車源的說明</button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
 
