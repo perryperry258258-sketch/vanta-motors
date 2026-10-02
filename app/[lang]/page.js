@@ -3,6 +3,7 @@ import CarCard from '../../components/CarCard';
 import { site } from '../../lib/site';
 import { latestCars } from '../../lib/cars';
 import { dict, alternates } from '../../lib/i18n';
+import { findDict } from '../../lib/i18n-find';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,8 @@ export default async function Home({ params }) {
           </h1>
           <p className="hero-sub">{t.hero.tagline}</p>
           <div className="hero-actions">
-            <Link href={`/${lang}/vehicles`} className="btn btn-dark">{t.hero.browse}</Link>
+            <Link href={`/${lang}/vehicles`} className="btn btn-light">{t.hero.browse}</Link>
+            <Link href={`/${lang}/find-your-car`} className="btn btn-light">{findDict[lang].hero}</Link>
             <Link href={`/${lang}/sell-your-car`} className="btn btn-light">{t.hero.sell}</Link>
           </div>
         </div>
@@ -80,6 +82,7 @@ export default async function Home({ params }) {
         <p className="contact-lead">{t.home.contactLead}</p>
         <div className="contact-actions">
           <a href={site.lineUrl} className="btn btn-dark" target="_blank" rel="noopener noreferrer">{t.car.line}</a>
+          <Link href={`/${lang}/find-your-car`} className="btn btn-light">{findDict[lang].hero}</Link>
           <Link href={`/${lang}/sell-your-car`} className="btn btn-light">{t.hero.sell}</Link>
         </div>
         <p className="contact-meta">{t.home.lineId}{site.lineId}</p>
