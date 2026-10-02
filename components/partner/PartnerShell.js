@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext } from 'react';
 import { Login, useAuthProfile } from '../admin/AdminShell';
 import { getSupabase } from '../../lib/supabase';
@@ -14,7 +15,14 @@ export function usePartner() {
   return useContext(PartnerContext);
 }
 
+const NAV = [
+  ['/partner', '我的案件'],
+  ['/partner/cars', '我的車輛'],
+];
+
 export default function PartnerShell({ children }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const { session, profile, loading } = useAuthProfile();
 
   if (loading) return <main className="admin"><p className="admin-muted">載入中…</p></main>;
@@ -34,6 +42,8 @@ export default function PartnerShell({ children }) {
     );
   }
 
+  const current = (href) => (href === '/partner' ? pathname === '/partner' || pathname.startsWith('/partner/cases') : pathname.startsWith(href));
+
   return (
     <PartnerContext.Provider value={{ session, profile }}>
       <main className="admin">
@@ -44,6 +54,11 @@ export default function PartnerShell({ children }) {
           </Link>
           <button className="btn btn-light btn-sm" onClick={signOut}>登出</button>
         </div>
+        <nav className="tabs" style={{ marginTop: -8, marginBottom: 20 }}>
+          {NAV.map(([href, label]) => (
+            <button key={href} type="button" aria-pressed={current(href)} onClick={() => router.push(href)}>{label}</button>
+          ))}
+        </nav>
         {children}
       </main>
     </PartnerContext.Provider>
