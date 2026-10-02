@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase, UUID_RE } from '../../../lib/supabaseAdmin';
-import { runEstimate, taiwanYear, DEFAULT_SETTINGS, findModelFactor, findCondition } from '../../../lib/buyback/engine';
-import { searchRange, matchScore, matchTier } from '../../../lib/find';
+import { runEstimate, taiwanYear, DEFAULT_SETTINGS, findModelFactor, findCondition, priceRanges } from '../../../lib/buyback/engine';
+import { matchScore, matchTier } from '../../../lib/find';
 import { photoUrl } from '../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -31,8 +31,9 @@ export async function POST(req) {
       .maybeSingle();
     if (!model || !model.active || !model.brand || !model.brand.active) return fail('model not found', 404);
 
-    // 大概的尋車區間：只有選了年份、而且這個車型有行情規則時才計算
+    // 市場行情價與預估對客售價：只有選了年份、而且這個車型有新車價時才計算
     let range = null;
+    let retail = null;
     let confidence = 'none';
     let updatedAt = null;
     let breakdown = null;
@@ -45,6 +46,7 @@ export async function POST(req) {
         db.from('model_factors').select('model, factor').eq('brand_id', model.brand.id),
         db.from('condition_factors').select('*'),
       ]);
+      const s = { ...DEFAULT_SETTINGS, ...(settings.data || {}) };
       const est = runEstimate({
         rules: rules.data || [],
         brand: model.brand,
@@ -52,13 +54,15 @@ export async function POST(req) {
         mileage: mileageMax ? Math.round(mileageMax * 0.7) : 60000,
         depreciation: dep.data || [],
         mileageRules: km.data || [],
-        settings: { ...DEFAULT_SETTINGS, ...(settings.data || {}) },
+        settings: s,
         currentYear,
         modelFactor: findModelFactor(mfs.data, model.name),
         condition: findCondition(conds.data, 'normal'),
       });
-      if (est.center) {
-        range = searchRange(est.center);
+      if (est.method === 'formula' && est.center) {
+        const ranges = priceRanges(est.center, s);
+        range = ranges.market;
+        retail = ranges.retail;
         confidence = est.quality === 'exact' ? 'medium' : 'low';
         updatedAt = est.updatedAt;
         breakdown = est.breakdown;
@@ -134,6 +138,7 @@ export async function POST(req) {
       budgetMax,
       notes: clean(b.notes, 500),
       range,
+      retail,
       confidence,
       updatedAt,
       breakdown,
@@ -143,4 +148,4 @@ export async function POST(req) {
     console.error(e);
     return fail('server error', 500);
   }
-}
+        }
