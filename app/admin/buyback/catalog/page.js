@@ -418,6 +418,10 @@ function Settings() {
         min_year: String(v.min_year),
         spread_low: String(v.spread_low),
         spread_high: String(v.spread_high),
+        market_low: String(v.market_low),
+        market_high: String(v.market_high),
+        retail_low: String(v.retail_low),
+        retail_high: String(v.retail_high),
         round_to: String(v.round_to),
         stale_days: String(v.stale_days),
       });
@@ -430,12 +434,18 @@ function Settings() {
       min_year: Math.round(toNum(s.min_year)),
       spread_low: toNum(s.spread_low),
       spread_high: toNum(s.spread_high),
+      market_low: toNum(s.market_low),
+      market_high: toNum(s.market_high),
+      retail_low: toNum(s.retail_low),
+      retail_high: toNum(s.retail_high),
       round_to: Math.round(toNum(s.round_to)),
       stale_days: Math.round(toNum(s.stale_days)),
       updated_at: new Date().toISOString(),
     };
     if (Object.values(row).some((v) => v === null || Number.isNaN(v))) return alert('每個欄位都要填寫');
-    if (row.spread_low >= row.spread_high) return alert('區間下緣要小於上緣');
+    if (row.spread_low >= row.spread_high || row.market_low >= row.market_high || row.retail_low >= row.retail_high) {
+      return alert('每一組的下緣都要小於上緣');
+    }
     setBusy(true);
     const { error } = await getSupabase().from('buyback_settings').upsert(row);
     setBusy(false);
@@ -450,13 +460,19 @@ function Settings() {
     <div className="admin-card">
       <h3>估價設定</h3>
       <p className="admin-muted">
-        預估收購行情＝預估市場行情 × 下緣 ～ 預估市場行情 × 上緣，再取整數。目前建議 0.80～0.88，例如市場行情 1,193,063 會顯示收購 950,000 – 1,050,000。
+        網站上的三種價格，都是用「預估市場行情」乘上下面的比例，給客人一個大概範圍。
+        例如預估市場行情 1,000,000：市場行情價 0.92～1.08 顯示 920,000 – 1,080,000；
+        預估對客售價 1.00～1.10 顯示 1,000,000 – 1,100,000；車商建議收購價 0.80～0.88 顯示 800,000 – 880,000。
       </p>
       <div className="field-grid">
+        <label className="field"><span>市場行情價・下緣</span><input type="number" step="0.01" inputMode="decimal" {...set('market_low')} /></label>
+        <label className="field"><span>市場行情價・上緣</span><input type="number" step="0.01" inputMode="decimal" {...set('market_high')} /></label>
+        <label className="field"><span>預估對客售價・下緣</span><input type="number" step="0.01" inputMode="decimal" {...set('retail_low')} /></label>
+        <label className="field"><span>預估對客售價・上緣</span><input type="number" step="0.01" inputMode="decimal" {...set('retail_high')} /></label>
+        <label className="field"><span>車商建議收購價・下緣</span><input type="number" step="0.01" inputMode="decimal" {...set('spread_low')} /></label>
+        <label className="field"><span>車商建議收購價・上緣</span><input type="number" step="0.01" inputMode="decimal" {...set('spread_high')} /></label>
         <label className="field"><span>年份選單最早年份</span><input type="number" inputMode="numeric" {...set('min_year')} /></label>
         <label className="field"><span>取整到（元）</span><input type="number" inputMode="numeric" {...set('round_to')} /></label>
-        <label className="field"><span>區間下緣</span><input type="number" step="0.01" inputMode="decimal" {...set('spread_low')} /></label>
-        <label className="field"><span>區間上緣</span><input type="number" step="0.01" inputMode="decimal" {...set('spread_high')} /></label>
         <label className="field"><span>行情多少天沒更新要提醒</span><input type="number" inputMode="numeric" {...set('stale_days')} /></label>
       </div>
       <div className="form-actions">
@@ -464,4 +480,4 @@ function Settings() {
       </div>
     </div>
   );
-        }
+                          }
