@@ -23,6 +23,8 @@ const FIELD_LABEL = {
   subject: '車輛名稱', customer_request: '客戶需求', type: '類型', source: '來源',
 };
 
+const partnerLineUrl = (p) => (p && p.line_id ? `https://line.me/ti/p/~${encodeURIComponent(p.line_id)}` : '');
+
 function CaseDetail() {
   const { id } = useParams();
   const { role, profile, session } = useRole();
@@ -35,6 +37,7 @@ function CaseDetail() {
   const [shareNote, setShareNote] = useState(false);
   const [request, setRequest] = useState('');
   const [transferMsg, setTransferMsg] = useState('');
+  const [copied, setCopied] = useState(false);
 
   async function load() {
     const sb = getSupabase();
@@ -92,21 +95,26 @@ function CaseDetail() {
     load();
   }
 
-  async function transfer() {
+  function copyTransfer(msg) {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(msg).then(() => setCopied(true)).catch(() => setCopied(false));
+  }
+
+  function transfer() {
     if (!c.partner_id) return alert('請先指定車源負責人');
     const msg = buildTransferMessage({ ...c, customer_request: request || c.customer_request });
+
+    // 必須在按下的當下就複製和開啟 LINE，手機瀏覽器才不會擋
+    copyTransfer(msg);
+    const url = partnerLineUrl(c.partner);
+    if (url) window.open(url, '_blank');
     setTransferMsg(msg);
-    try {
-      await navigator.clipboard.writeText(msg);
-    } catch {
-      // 複製失敗時畫面上仍會顯示訊息
-    }
-    await addEvent('transfer', `轉交給 ${c.partner ? c.partner.name : ''}\n\n${msg}`, 'partner');
-    if (['new', 'in_progress'].includes(c.status)) await update({ status: 'transferred' });
-    else load();
-    if (c.partner && c.partner.line_id) {
-      window.open(`https://line.me/ti/p/~${encodeURIComponent(c.partner.line_id)}`, '_blank');
-    }
+
+    (async () => {
+      await addEvent('transfer', `轉交給 ${c.partner ? c.partner.name : ''}\n\n${msg}`, 'partner');
+      if (['new', 'in_progress'].includes(c.status)) await update({ status: 'transferred' });
+      else load();
+    })();
   }
 
   function eventText(e) {
@@ -125,6 +133,7 @@ function CaseDetail() {
   }
 
   const cu = c.customer;
+  const lineUrl = partnerLineUrl(c.partner);
 
   return (
     <>
@@ -179,8 +188,13 @@ function CaseDetail() {
         )}
         {transferMsg && (
           <div className="result-box">
-            已複製轉交訊息{c.partner && c.partner.line_id ? '，並開啟車源的 LINE' : '，請貼到車源的 LINE'}：
+            {copied ? '已複製轉交訊息，' : ''}
+            {lineUrl ? '在車源的 LINE 對話中貼上即可。' : '這位車源沒有填 LINE ID，請手動傳給對方。'}
             <pre style={{ whiteSpace: 'pre-wrap', font: 'inherit', marginTop: 8 }}>{transferMsg}</pre>
+            <div className="inline-actions">
+              <button onClick={() => copyTransfer(transferMsg)}>{copied ? '已複製' : '複製訊息'}</button>
+              {lineUrl && <a href={lineUrl} target="_blank" rel="noopener noreferrer">開啟 {c.partner.name} 的 LINE</a>}
+            </div>
           </div>
         )}
       </div>
@@ -231,4 +245,4 @@ function CaseDetail() {
       )}
     </>
   );
-          }
+  }
