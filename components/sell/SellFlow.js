@@ -6,6 +6,7 @@ import { site } from '../../lib/site';
 import { getSupabase } from '../../lib/supabase';
 import { compressImage } from '../../lib/image';
 import { buildLineMessage, lineChatUrl, formatNT, formatKm, formatDate } from '../../lib/buyback/format';
+import EstimateBreakdown from '../EstimateBreakdown';
 
 const postJSON = (url, data, extra = {}) =>
   fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), ...extra });
@@ -138,6 +139,17 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
               {result.updatedAt && (
                 <p className="estimate-updated">{t.updated}{formatDate(lang, result.updatedAt)}</p>
               )}
+              <EstimateBreakdown
+                lang={lang}
+                b={result.breakdown}
+                extra={
+                  result.spreadLow
+                    ? lang === 'en'
+                      ? `Buyback range = estimated market value × ${Math.round(result.spreadLow * 100)}%–${Math.round(result.spreadHigh * 100)}%`
+                      : `預估收購行情 ＝ 預估市場行情 × ${Math.round(result.spreadLow * 100)}%～${Math.round(result.spreadHigh * 100)}%`
+                    : null
+                }
+              />
             </>
           ) : (
             <p className="estimate-nodata">{t.noData}</p>
@@ -308,4 +320,4 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
       </p>
     </form>
   );
-}
+          }
