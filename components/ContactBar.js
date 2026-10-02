@@ -6,6 +6,11 @@ import { dict } from '../lib/i18n';
 import { trackCar } from '../lib/track';
 import { carRef } from '../lib/case';
 
+const LABELS = {
+  zh: { ask: '詢問這台車', visit: '預約看車' },
+  en: { ask: 'Ask About This Car', visit: 'Book a Visit' },
+};
+
 function inquiryOnce(carId, lang) {
   try {
     const key = `vanta:inquiry:${carId}`;
@@ -22,38 +27,45 @@ function inquiryOnce(carId, lang) {
   }).catch(() => {});
 }
 
+function lineLink(message) {
+  return site.lineOaId
+    ? `https://line.me/R/oaMessage/${encodeURIComponent(site.lineOaId)}/?${encodeURIComponent(message)}`
+    : site.lineUrl;
+}
+
 export default function ContactBar({ carId, title = '', lang = 'zh' }) {
   const t = dict[lang].car;
+  const L = LABELS[lang] || LABELS.zh;
 
   useEffect(() => {
     trackCar(carId, 'view');
   }, [carId]);
 
   const ref = carRef(carId);
-  const message =
+  const askMessage =
     lang === 'en'
       ? `Hello, I'm interested in this vehicle: ${title} (Ref ${ref})`
       : `您好，我想詢問這台車：${title}（車輛編號 ${ref}）`;
-  const href = site.lineOaId
-    ? `https://line.me/R/oaMessage/${encodeURIComponent(site.lineOaId)}/?${encodeURIComponent(message)}`
-    : site.lineUrl;
+  const visitMessage =
+    lang === 'en'
+      ? `Hello, I'd like to book a visit: ${title} (Ref ${ref})\nPreferred date:\nPreferred time:`
+      : `您好，我想預約看車：${title}（車輛編號 ${ref}）\n希望日期：\n希望時段：`;
+
+  const onClick = () => {
+    trackCar(carId, 'line');
+    inquiryOnce(carId, lang);
+  };
 
   return (
     <div className="contact-bar">
       <div className="contact-bar-inner">
         <p>{t.interested}</p>
-        <div className="contact-buttons contact-buttons-single">
-          <a
-            href={href}
-            className="btn btn-dark"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => {
-              trackCar(carId, 'line');
-              inquiryOnce(carId, lang);
-            }}
-          >
-            {t.line}
+        <div className="contact-buttons">
+          <a href={lineLink(askMessage)} className="btn btn-dark" target="_blank" rel="noopener noreferrer" onClick={onClick}>
+            {L.ask}
+          </a>
+          <a href={lineLink(visitMessage)} className="btn btn-light" target="_blank" rel="noopener noreferrer" onClick={onClick}>
+            {L.visit}
           </a>
         </div>
       </div>
