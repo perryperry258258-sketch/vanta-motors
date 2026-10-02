@@ -78,6 +78,10 @@ function Catalog() {
         </div>
       </div>
 
+      <ModelFactors brands={brands || []} />
+
+      <ConditionFactors />
+
       <FactorTable
         title="年份係數"
         hint="車齡＝今年 − 車輛年份。例如 0～1 年填 0 和 1；最後一列的上限留空代表「以上」。"
@@ -100,6 +104,156 @@ function Catalog() {
 
       <Settings />
     </>
+  );
+}
+
+function ModelFactors({ brands }) {
+  const [rows, setRows] = useState(null);
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const { data, error } = await getSupabase()
+      .from('model_factors')
+      .select('*, brand:buyback_brands(name)')
+      .order('updated_at', { ascending: false });
+    if (error) return alert('讀取失敗：' + error.message);
+    setRows(data);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const brand = brands.find((b) => b.id === (form && form.brandId));
+  const models = brand ? [...(brand.buyback_models || [])].sort((a, b) => a.name.localeCompare(b.name)) : [];
+
+  async function save() {
+    const f = Number(form.factor);
+    if (!form.brandId || !form.model.trim()) return alert('請選擇品牌並填寫車型');
+    if (!Number.isFinite(f) || f <= 0) return alert('係數要大於 0，例如 1.05');
+    setBusy(true);
+    const sb = getSupabase();
+    const row = { brand_id: form.brandId, model: form.model.trim(), factor: f, updated_at: new Date().toISOString() };
+    const { error } = form.id
+      ? await sb.from('model_factors').update(row).eq('id', form.id)
+      : await sb.from('model_factors').insert(row);
+    setBusy(false);
+    if (error) return alert(error.message.includes('duplicate') ? '這個品牌＋車型已經有係數了，請直接修改' : '儲存失敗：' + error.message);
+    setForm(null);
+    load();
+  }
+
+  async function remove(r) {
+    if (!confirm(`刪除 ${r.brand ? r.brand.name : ''}｜${r.model} 的車款係數？刪除後這個車型會使用 1.00。`)) return;
+    const { error } = await getSupabase().from('model_factors').delete().eq('id', r.id);
+    if (error) return alert('刪除失敗：' + error.message);
+    load();
+  }
+
+  return (
+    <div className="admin-card">
+      <h3>車款係數</h3>
+      <p className="admin-muted">品牌＋車型一起判斷，例如 Toyota｜RAV4。沒有設定的車型一律使用 1.00。</p>
+      {!rows && <p className="admin-muted">載入中…</p>}
+      {rows && rows.length === 0 && <p className="admin-muted">還沒有設定任何車款係數。</p>}
+      {rows && rows.length > 0 && (
+        <ul className="rank">
+          {rows.map((r) => (
+            <li key={r.id}>
+              <span>{r.brand ? r.brand.name : '?'}｜{r.model}｜{Number(r.factor).toFixed(2)}</span>
+              <span className="inline-actions" style={{ marginTop: 0 }}>
+                <button onClick={() => setForm({ id: r.id, brandId: r.brand_id, model: r.model, factor: String(r.factor) })}>修改</button>
+                <button className="danger" onClick={() => remove(r)}>刪除</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {form ? (
+        <div className="admin-form">
+          <label className="field"><span>品牌</span>
+            <select value={form.brandId} onChange={(e) => setForm({ ...form, brandId: e.target.value })}>
+              <option value="">選擇品牌</option>
+              {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </label>
+          <label className="field"><span>車型（要和車型名稱完全相同）</span>
+            <input list="model-factor-models" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="例如 RAV4" />
+            <datalist id="model-factor-models">
+              {models.map((m) => <option key={m.id} value={m.name} />)}
+            </datalist>
+          </label>
+          <label className="field"><span>係數</span>
+            <input type="number" step="0.01" inputMode="decimal" value={form.factor} onChange={(e) => setForm({ ...form, factor: e.target.value })} placeholder="1.05" />
+          </label>
+          <div className="form-actions">
+            <button className="btn btn-light" onClick={() => setForm(null)} disabled={busy}>取消</button>
+            <button className="btn btn-dark" onClick={save} disabled={busy}>{busy ? '儲存中…' : '儲存'}</button>
+          </div>
+        </div>
+      ) : (
+        <div className="inline-actions">
+          <button onClick={() => setForm({ id: null, brandId: '', model: '', factor: '1.00' })}>＋ 新增車款係數</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConditionFactors() {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const { data, error } = await getSupabase().from('condition_factors').select('*').order('sort_order');
+    if (error) return alert('讀取失敗：' + error.message);
+    setRows(data.map((r) => ({ ...r, factor: String(r.factor) })));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function save() {
+    for (const r of rows) {
+      const f = Number(r.factor);
+      if (!Number.isFinite(f) || f <= 0) return alert('每個係數都要大於 0');
+    }
+    setBusy(true);
+    const now = new Date().toISOString();
+    const { error } = await getSupabase()
+      .from('condition_factors')
+      .upsert(rows.map((r) => ({ key: r.key, label_zh: r.label_zh, label_en: r.label_en, factor: Number(r.factor), sort_order: r.sort_order, updated_at: now })));
+    setBusy(false);
+    if (error) return alert('儲存失敗：' + error.message);
+    alert('已儲存');
+    load();
+  }
+
+  return (
+    <div className="admin-card">
+      <h3>車況係數</h3>
+      <p className="admin-muted">網站估價目前一律以「正常」計算，車況實際確認後可在行情規則的估價試算中套用。</p>
+      {!rows && <p className="admin-muted">載入中…</p>}
+      {rows && rows.map((r, i) => (
+        <div className="factor-row" key={r.key} style={{ gridTemplateColumns: '1fr 120px' }}>
+          <span style={{ fontSize: 15 }}>{r.label_zh}</span>
+          <input
+            type="number"
+            step="0.01"
+            inputMode="decimal"
+            value={r.factor}
+            onChange={(e) => setRows((prev) => prev.map((x, j) => (j === i ? { ...x, factor: e.target.value } : x)))}
+          />
+        </div>
+      ))}
+      {rows && (
+        <div className="form-actions">
+          <button className="btn btn-dark btn-sm" onClick={save} disabled={busy}>{busy ? '儲存中…' : '儲存車況係數'}</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -296,7 +450,7 @@ function Settings() {
     <div className="admin-card">
       <h3>估價設定</h3>
       <p className="admin-muted">
-        客人看到的區間＝計算結果 × 下緣 ～ 計算結果 × 上緣，再取整數。預設 0.94～1.02，例如計算出 836,400 會顯示 780,000 – 850,000。
+        預估收購行情＝預估市場行情 × 下緣 ～ 預估市場行情 × 上緣，再取整數。目前建議 0.80～0.88，例如市場行情 1,193,063 會顯示收購 950,000 – 1,050,000。
       </p>
       <div className="field-grid">
         <label className="field"><span>年份選單最早年份</span><input type="number" inputMode="numeric" {...set('min_year')} /></label>
@@ -310,4 +464,4 @@ function Settings() {
       </div>
     </div>
   );
-    }
+        }
