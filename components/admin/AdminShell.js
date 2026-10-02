@@ -20,6 +20,7 @@ const NAV = [
   ['/admin/buyback', '收車總覽', ['admin']],
   ['/admin/buyback/pricing', '行情規則', ['admin']],
   ['/admin/buyback/catalog', '品牌與係數', ['admin']],
+  ['/admin/cleanup', '刪除資料', ['admin']],
 ];
 
 const RoleContext = createContext({ role: null, profile: null, session: null });
