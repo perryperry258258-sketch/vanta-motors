@@ -1,14 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { getSupabase } from '../../lib/supabase';
 import '../../styles/buyback-admin.css';
 import '../../styles/crm.css';
+import '../../styles/deal.css';
 
 // roles: 這個項目哪些角色看得到
 const NAV = [
+  ['/admin/overview', '營運總覽', ['admin']],
   ['/admin/cases', '案件', ['admin', 'staff']],
   ['/admin/customers', '客戶', ['admin', 'staff']],
   ['/admin', '車輛管理', ['admin', 'staff']],
@@ -25,8 +27,8 @@ export function useRole() {
   return useContext(RoleContext);
 }
 
-export default function AdminShell({ children, adminOnly = false }) {
-  const pathname = usePathname();
+// 共用的登入狀態：session 與角色資料
+export function useAuthProfile() {
   const [session, setSession] = useState(undefined);
   const [profile, setProfile] = useState(undefined);
 
@@ -50,21 +52,30 @@ export default function AdminShell({ children, adminOnly = false }) {
       .then(({ data }) => setProfile(data || null));
   }, [session]);
 
-  if (session === undefined || (session && profile === undefined)) {
-    return <main className="admin"><p className="admin-muted">載入中…</p></main>;
-  }
+  const loading = session === undefined || (session && profile === undefined);
+  return { session, profile, loading };
+}
+
+export default function AdminShell({ children, adminOnly = false }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { session, profile, loading } = useAuthProfile();
+  const role = profile && profile.role;
+
+  useEffect(() => {
+    if (role === 'partner') router.replace('/partner');
+  }, [role, router]);
+
+  if (loading) return <main className="admin"><p className="admin-muted">載入中…</p></main>;
   if (!session) return <Login />;
 
   const signOut = () => getSupabase().auth.signOut();
-  const role = profile && profile.role;
 
   if (!role || role === 'partner') {
     return (
       <main className="admin">
-        <h1>{role === 'partner' ? '合作夥伴專區即將開放' : '這個帳號尚未設定權限'}</h1>
-        <p className="admin-muted">
-          {role === 'partner' ? '您的案件與成交回報頁面會在下一階段開放。' : '請聯絡 VANTA 管理員設定帳號權限。'}
-        </p>
+        <h1>{role === 'partner' ? '前往合作夥伴頁面…' : '這個帳號尚未設定權限'}</h1>
+        {!role && <p className="admin-muted">請聯絡 VANTA 管理員設定帳號權限。</p>}
         <button className="btn btn-light btn-sm" style={{ marginTop: 20 }} onClick={signOut}>登出</button>
       </main>
     );
@@ -89,7 +100,7 @@ export default function AdminShell({ children, adminOnly = false }) {
   );
 }
 
-function Login() {
+export function Login({ title = '後台登入' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -107,7 +118,7 @@ function Login() {
   return (
     <main className="admin">
       <form className="login" onSubmit={submit}>
-        <h1>後台登入</h1>
+        <h1>{title}</h1>
         <label className="field">
           <span>Email</span>
           <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -123,4 +134,4 @@ function Login() {
       </form>
     </main>
   );
-}
+    }
