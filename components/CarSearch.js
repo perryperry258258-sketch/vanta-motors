@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import CarCard from './CarCard';
 import { searchCars } from '../lib/cars';
 import { site } from '../lib/site';
@@ -86,10 +87,24 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       )}
 
       {!loading && cars.length === 0 && (
-        <p className="empty">
-          {t.emptyBefore}
-          <a href={site.lineUrl} target="_blank" rel="noopener noreferrer">{t.emptyLink}</a>
-          {t.emptyAfter}
+        <>
+          <p className="empty">
+            {t.emptyBefore}
+            <a href={site.lineUrl} target="_blank" rel="noopener noreferrer">{t.emptyLink}</a>
+            {t.emptyAfter}
+          </p>
+          <div className="more-link" style={{ marginTop: 0 }}>
+            <Link href={`/${lang}/find-your-car`} className="btn btn-dark">
+              {lang === 'en' ? 'Ask VANTA to Find It' : '請 VANTA 幫我找'}
+            </Link>
+          </div>
+        </>
+      )}
+
+      {cars.length > 0 && !hasMore && (
+        <p className="empty" style={{ textAlign: 'center' }}>
+          {lang === 'en' ? "Can't find the right one? " : '沒有看到想要的？'}
+          <Link href={`/${lang}/find-your-car`}>{lang === 'en' ? 'Tell VANTA what you want' : '告訴 VANTA 你想找什麼'}</Link>
         </p>
       )}
 
