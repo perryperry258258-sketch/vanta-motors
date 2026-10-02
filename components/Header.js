@@ -5,8 +5,10 @@ import { useState } from 'react';
 import Logo from './Logo';
 import LangSwitch from './LangSwitch';
 import { dict } from '../lib/i18n';
+import { findDict } from '../lib/i18n-find';
 import '../styles/i18n.css';
 import '../styles/sell.css';
+import '../styles/find.css';
 
 export default function Header({ lang = 'zh' }) {
   const [open, setOpen] = useState(false);
@@ -16,6 +18,7 @@ export default function Header({ lang = 'zh' }) {
   const links = [
     [`/${lang}`, t.home],
     [`/${lang}/vehicles`, t.vehicles],
+    [`/${lang}/find-your-car`, findDict[lang].nav],
     [`/${lang}/sell-your-car`, t.sell],
     [`/${lang}#about`, t.about],
     [`/${lang}#contact`, t.contact],
