@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase, UUID_RE } from '../../../../lib/supabaseAdmin';
-import { runEstimate, taiwanYear, DEFAULT_SETTINGS, findModelFactor, findCondition } from '../../../../lib/buyback/engine';
+import { runEstimate, taiwanYear, DEFAULT_SETTINGS, findModelFactor, findCondition, priceRanges } from '../../../../lib/buyback/engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +68,8 @@ export async function POST(req) {
       .single();
     if (error) throw error;
 
+    const ranges = result.method === 'formula' ? priceRanges(result.center, settings) : null;
+
     return NextResponse.json({
       id: saved.id,
       brand: model.brand.name,
@@ -79,6 +81,7 @@ export async function POST(req) {
       quality: result.quality,
       updatedAt: result.updatedAt,
       breakdown: result.breakdown,
+      market: ranges ? ranges.market : null,
       spreadLow: Number(settings.spread_low),
       spreadHigh: Number(settings.spread_high),
     });
