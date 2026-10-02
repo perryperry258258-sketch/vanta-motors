@@ -17,3 +17,16 @@
 .find-match h4 { margin: 4px 0 6px; font-size: 16px; font-weight: 500; line-height: 1.4; }
 .find-tier { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 12px; background: var(--paper); color: var(--ink2); }
 .find-tier-high { background: var(--black); color: var(--white); }
+
+/* 估價計算明細 */
+.breakdown { margin-top: 18px; font-size: 14px; }
+.breakdown summary { cursor: pointer; color: var(--ink2); list-style: none; }
+.breakdown summary::-webkit-details-marker { display: none; }
+.breakdown summary::after { content: ' ＋'; color: var(--mute); }
+.breakdown[open] summary::after { content: ' －'; }
+.breakdown dl { margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: var(--white); }
+.breakdown dl div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-variant-numeric: tabular-nums; }
+.breakdown dt { color: var(--mute); }
+.breakdown .breakdown-total { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); font-weight: 500; }
+.breakdown .breakdown-total dt { color: var(--black); }
+.breakdown-extra { margin-top: 8px; font-size: 12px; line-height: 1.8; color: var(--mute); }
