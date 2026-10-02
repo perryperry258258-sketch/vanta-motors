@@ -18,7 +18,7 @@ const EMPTY_RULE = {
   id: null, brand_id: '', model_id: '', reference_year: '', reference_price: '',
   brand_factor: '', year_factor: '', mileage_min: '', mileage_max: '', mileage_factor: '',
   estimated_low: '', estimated_high: '', source: '', source_url: '', source_updated_at: '',
-  notes: '', active: true,
+  notes: '', active: true, year_status: 'confirmed',
 };
 const INT_FIELDS = ['reference_year', 'reference_price', 'mileage_min', 'mileage_max', 'estimated_low', 'estimated_high',
   'market_price_low', 'market_price_high', 'buy_price_low', 'buy_price_high'];
@@ -77,23 +77,31 @@ function Pricing() {
 
   const staleCutoff = Date.now() - db.settings.stale_days * 864e5;
   const isStale = (r) => new Date(r.source_updated_at || r.updated_at).getTime() < staleCutoff;
-  const rules = db.rules.filter((r) => !brandFilter || r.brand_id === brandFilter);
   const label = (r) => {
     const b = lookup.brandById[r.brand_id];
     const m = lookup.modelById[r.model_id];
     return `${b ? b.name : '?'} ${m ? m.name : '?'}`;
   };
+  const rules = [...db.rules]
+    .filter((r) => !brandFilter || r.brand_id === brandFilter)
+    .sort((a, b) => label(a).localeCompare(label(b)) || Number(b.reference_year) - Number(a.reference_year));
 
   function startEdit(rule) {
     const form = { ...EMPTY_RULE };
-    if (rule) Object.keys(form).forEach((key) => { form[key] = rule[key] ?? (key === 'active' ? true : ''); });
+    if (rule) Object.keys(form).forEach((key) => { form[key] = rule[key] ?? EMPTY_RULE[key]; });
     setEditing(form);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 同一個車型新增另一個價格年份（不會覆蓋原本的年份）
+  function addYear(rule) {
+    setEditing({ ...EMPTY_RULE, brand_id: rule.brand_id, model_id: rule.model_id, reference_year: String(new Date().getFullYear()) });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function saveRule() {
     const f = editing;
-    if (!f.model_id || !toNum(f.reference_year)) return alert('請選擇車型並填寫基準年份');
+    if (!f.model_id || !toNum(f.reference_year)) return alert('請選擇車型並填寫價格年份');
     if (!toNum(f.reference_price) && !(toNum(f.estimated_low) && toNum(f.estimated_high))) {
       return alert('請填寫基準價格，或填寫最低／最高收購價格');
     }
@@ -105,6 +113,7 @@ function Pricing() {
       source_updated_at: f.source_updated_at || null,
       notes: f.notes.trim() || null,
       active: !!f.active,
+      year_status: f.year_status === 'placeholder' ? 'placeholder' : 'confirmed',
       updated_at: new Date().toISOString(),
     };
     INT_FIELDS.forEach((key) => { if (key in f) row[key] = toNum(f[key]) === null ? null : Math.round(toNum(f[key])); });
@@ -130,7 +139,7 @@ function Pricing() {
   }
 
   async function deleteRule(rule) {
-    if (!confirm(`刪除「${label(rule)} ${rule.reference_year}」這筆行情？過去的估價紀錄不受影響。`)) return;
+    if (!confirm(`刪除「${label(rule)} ${rule.reference_year} 年新車價」？其他年份不受影響，過去的估價紀錄也不受影響。`)) return;
     const { error } = await getSupabase().from('pricing_rules').delete().eq('id', rule.id);
     if (error) return alert('刪除失敗：' + error.message);
     load();
@@ -335,7 +344,8 @@ function Pricing() {
         <button className="btn btn-dark btn-sm" onClick={() => startEdit(null)}>＋ 新增行情</button>
       </div>
       <p className="admin-muted">
-        基準價格請填「台灣新車建議售價」。預估市場行情＝新車價 × 年份 × 里程 × 品牌 × 車款 × 車況係數；收購行情＝市場行情 × 估價設定的區間。
+        這裡是新車基準價的歷史資料庫：同一個車型可以有很多個「價格年份」，例如 2024、2025、2026 各一筆，每年新增一個年份就好，不會覆蓋舊價格。
+        估價時用「不晚於車輛年份、最接近的那一年」新車價；沒有同一年的資料會標示「歷史基準價參考」；不會用較新的價格往回推。
       </p>
 
       {staleCount > 0 && (
@@ -358,8 +368,14 @@ function Pricing() {
                 {formModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             </label>
-            <label className="field"><span>基準年份（適用此年份以後）</span><input type="number" inputMode="numeric" {...set('reference_year')} /></label>
-            <label className="field"><span>基準價格（元）</span><input type="number" inputMode="numeric" {...set('reference_price')} /></label>
+            <label className="field"><span>價格年份（這一年的台灣新車售價）</span><input type="number" inputMode="numeric" {...set('reference_year')} /></label>
+            <label className="field"><span>新車基準價（元）</span><input type="number" inputMode="numeric" {...set('reference_price')} /></label>
+            <label className="field"><span>年份狀態</span>
+              <select {...set('year_status')}>
+                <option value="confirmed">已確認（參與估價）</option>
+                <option value="placeholder">年份待確認（不參與估價）</option>
+              </select>
+            </label>
             <label className="field"><span>品牌係數（空白＝用品牌預設）</span><input type="number" step="0.01" inputMode="decimal" {...set('brand_factor')} /></label>
             <label className="field"><span>年份係數（空白＝用年份表）</span><input type="number" step="0.01" inputMode="decimal" {...set('year_factor')} /></label>
             <label className="field"><span>里程下限（km，選填）</span><input type="number" inputMode="numeric" {...set('mileage_min')} /></label>
@@ -372,9 +388,9 @@ function Pricing() {
           <p className="admin-muted">
             有填最低／最高收購價格時，同年份、里程符合的車會直接顯示這個區間，不套公式。
           </p>
-          <label className="field"><span>資料來源</span><input placeholder="例如：VANTA 實際收購、人工整理" {...set('source')} /></label>
+          <label className="field"><span>價格來源</span><input placeholder="例如：Toyota 台灣官網 2022 年價目表" {...set('source')} /></label>
           <label className="field"><span>來源網址（選填）</span><input {...set('source_url')} /></label>
-          <label className="field"><span>備註</span><textarea {...set('notes')} /></label>
+          <label className="field"><span>價格備註</span><textarea placeholder="例如：最低車型起價、已停售最後售價" {...set('notes')} /></label>
           <label className="field"><span>狀態</span>
             <select value={editing.active ? '1' : '0'} onChange={(e) => setEditing({ ...editing, active: e.target.value === '1' })}>
               <option value="1">啟用</option>
@@ -394,7 +410,7 @@ function Pricing() {
         <h3>CSV 匯入／匯出</h3>
         <p className="admin-muted">
           先匯出一份當範本，用 Excel 或 Google 試算表編輯後再匯入。品牌或車型不存在會自動建立。
-          同車型、同基準年份、同里程範圍的資料視為重複：匯入時會用新資料取代舊的，不會重複新增。
+          reference_year 填價格年份：同車型、同價格年份的資料會用新資料取代；不同年份會新增一筆，舊年份保留。
         </p>
         <div className="inline-actions">
           <button onClick={exportCSV}>匯出 CSV</button>
@@ -442,22 +458,31 @@ function Pricing() {
         {rules.map((r) => (
           <div className="lead-card" key={r.id}>
             <h3>
-              {label(r)}　{r.reference_year}+{' '}
-              {!r.active ? <span className="pill pill-off">停用</span> : isStale(r) ? <span className="pill pill-warn">待更新</span> : <span className="pill pill-ok">使用中</span>}
+              {label(r)}　{r.reference_year} 年新車價{' '}
+              {r.year_status === 'placeholder' ? (
+                <span className="pill pill-warn">年份待確認・不參與估價</span>
+              ) : !r.active ? (
+                <span className="pill pill-off">停用</span>
+              ) : isStale(r) ? (
+                <span className="pill pill-warn">待更新</span>
+              ) : (
+                <span className="pill pill-ok">使用中</span>
+              )}
             </h3>
             <p className="lead-meta">
-              基準價格 {nt(r.reference_price)}
+              新車基準價 {nt(r.reference_price)}
               {r.brand_factor !== null && `｜品牌係數 ${r.brand_factor}`}
               {r.year_factor !== null && `｜年份係數 ${r.year_factor}`}
               {(r.mileage_min !== null || r.mileage_max !== null) && `｜里程 ${nt(r.mileage_min)}～${nt(r.mileage_max)} km`}
               {r.mileage_factor !== null && `（係數 ${r.mileage_factor}）`}
               {r.estimated_low && r.estimated_high ? `｜固定區間 ${nt(r.estimated_low)}–${nt(r.estimated_high)}` : ''}
               <br />
-              {r.source || '未填來源'}｜資料日期 {r.source_updated_at || String(r.updated_at).slice(0, 10)}
-              {r.notes && <><br />{r.notes}</>}
+              價格來源：{r.source || '未填'}｜資料日期 {r.source_updated_at || String(r.updated_at).slice(0, 10)}
+              {r.notes && <><br />價格備註：{r.notes}</>}
             </p>
             <div className="inline-actions">
               <button onClick={() => startEdit(r)}>編輯</button>
+              <button onClick={() => addYear(r)}>＋ 新增其他年份</button>
               <button onClick={() => toggleRule(r)}>{r.active ? '停用' : '啟用'}</button>
               <button className="danger" onClick={() => deleteRule(r)}>刪除</button>
             </div>
@@ -524,12 +549,15 @@ function Simulator({ db, lookup }) {
       {result && (
         <div className="result-box">
           {result.quality === 'none' ? (
-            '缺少新車參考價格：這個車型還沒有行情規則，客人會看到「目前尚無足夠行情資料」。'
+            result.reason === 'only_newer_years'
+              ? `缺少 ${year} 年（含）以前的新車基準價：這個車型最早只有 ${result.earliestYear} 年的價格，系統不會用較新的價格往回推。請新增 ${year} 年或更早的新車價。客人會看到「目前尚無足夠行情資料」。`
+              : '缺少新車參考價格：這個車型還沒有已確認年份的新車價，客人會看到「目前尚無足夠行情資料」。'
           ) : result.method === 'manual' ? (
             <>使用固定收購區間：NT${nt(result.low)} – {nt(result.high)}</>
           ) : (
             <>
               <div className="money-row"><span>參考新車價</span><span>NT${nt(b.referencePrice)}</span></div>
+              <div className="money-row"><span>新車價年份</span><span>{b.priceYear} 年{b.priceYearExact ? '' : '（歷史基準價參考）'}</span></div>
               <div className="money-row"><span>車齡</span><span>{b.age} 年</span></div>
               <div className="money-row"><span>年份係數</span><span>{b.yearFactor.toFixed(2)}</span></div>
               <div className="money-row"><span>里程</span><span>{b.mileage === null ? '未提供' : `${nt(b.mileage)} km`}</span></div>
@@ -540,11 +568,11 @@ function Simulator({ db, lookup }) {
               <div className="money-row"><span>車況係數</span><span>{b.conditionFactor.toFixed(2)}</span></div>
               <div className="money-row money-total"><span>預估市場行情</span><span>NT${nt(b.market)}</span></div>
               <div className="money-row"><span>預估收購行情（客人在賣車頁看到）</span><span>NT${nt(result.low)} – {nt(result.high)}</span></div>
-              {result.quality === 'nearest' && <p className="admin-muted">這個年份沒有完全對應的規則，客人會看到「資料有限」。</p>}
+              {!b.priceYearExact && <p className="admin-muted">沒有 {year} 年的新車價，使用 {b.priceYear} 年的新車價（歷史基準價參考）。客人會看到「資料有限」提示。</p>}
             </>
           )}
         </div>
       )}
     </div>
   );
-                                                   }
+}
