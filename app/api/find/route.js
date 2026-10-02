@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase, UUID_RE } from '../../../lib/supabaseAdmin';
-import { runEstimate, taiwanYear, DEFAULT_SETTINGS } from '../../../lib/buyback/engine';
+import { runEstimate, taiwanYear, DEFAULT_SETTINGS, findModelFactor, findCondition } from '../../../lib/buyback/engine';
 import { searchRange, matchScore, matchTier } from '../../../lib/find';
 import { photoUrl } from '../../../lib/supabase';
 
@@ -35,12 +35,15 @@ export async function POST(req) {
     let range = null;
     let confidence = 'none';
     let updatedAt = null;
+    let breakdown = null;
     if (year) {
-      const [rules, dep, km, settings] = await Promise.all([
+      const [rules, dep, km, settings, mfs, conds] = await Promise.all([
         db.from('pricing_rules').select('*').eq('model_id', model.id).eq('active', true),
         db.from('depreciation_rules').select('*').eq('active', true),
         db.from('mileage_rules').select('*').eq('active', true),
         db.from('buyback_settings').select('*').eq('id', 1).maybeSingle(),
+        db.from('model_factors').select('model, factor').eq('brand_id', model.brand.id),
+        db.from('condition_factors').select('*'),
       ]);
       const est = runEstimate({
         rules: rules.data || [],
@@ -51,11 +54,14 @@ export async function POST(req) {
         mileageRules: km.data || [],
         settings: { ...DEFAULT_SETTINGS, ...(settings.data || {}) },
         currentYear,
+        modelFactor: findModelFactor(mfs.data, model.name),
+        condition: findCondition(conds.data, 'normal'),
       });
       if (est.center) {
         range = searchRange(est.center);
         confidence = est.quality === 'exact' ? 'medium' : 'low';
         updatedAt = est.updatedAt;
+        breakdown = est.breakdown;
       }
     }
 
@@ -130,6 +136,7 @@ export async function POST(req) {
       range,
       confidence,
       updatedAt,
+      breakdown,
       matches,
     });
   } catch (e) {
