@@ -3,10 +3,27 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Gallery from '../../../../components/Gallery';
 import ContactBar from '../../../../components/ContactBar';
+import EstimateBreakdown from '../../../../components/EstimateBreakdown';
 import { getCarBySlug } from '../../../../lib/cars';
+import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
+import { quoteForCar } from '../../../../lib/buyback/quote';
 import { dict, alternates, displayTitle, formatPrice, formatMileage, hasCJK } from '../../../../lib/i18n';
+import '../../../../styles/find.css';
 
 export const dynamic = 'force-dynamic';
+
+const LABELS = {
+  zh: {
+    price: '對客售價',
+    market: '市場行情價',
+    marketNote: '市場行情價是依新車價、年份與里程初步推估的大概範圍，僅供參考；實際價格依車況、配備與里程確認。',
+  },
+  en: {
+    price: 'Our Price',
+    market: 'Market Range',
+    marketNote: 'The market range is a rough estimate based on new-car price, age and mileage, for reference only. Final pricing depends on condition, equipment and mileage.',
+  },
+};
 
 const loadCar = cache(async (slug) => {
   try {
@@ -16,6 +33,15 @@ const loadCar = cache(async (slug) => {
     return null;
   }
 });
+
+async function loadQuote(car) {
+  try {
+    return await quoteForCar(getAdminSupabase(), car);
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
 
 export async function generateMetadata({ params }) {
   const { lang, slug } = await params;
@@ -43,15 +69,19 @@ export default async function VehiclePage({ params }) {
   if (!car) notFound();
 
   const t = dict[lang];
+  const L = LABELS[lang] || LABELS.zh;
   const title = displayTitle(car, lang);
   const showText = (s) => s && (lang === 'zh' || !hasCJK(s));
+  const quote = await loadQuote(car);
+  const market = quote && quote.market;
 
   const rows = [
     [t.car.year, car.year],
     [t.car.model, [car.brand, car.model].filter(Boolean).join(' ') || null],
     [t.car.color, showText(car.color) ? car.color : null],
     [t.car.mileage, car.mileage ? formatMileage(lang, car.mileage) : null],
-    [t.car.market, formatPrice(lang, car.price, car.price_max)],
+    [L.price, formatPrice(lang, car.price, car.price_max)],
+    [L.market, market ? formatPrice(lang, market.low / 10000, market.high / 10000) : null],
   ].filter(([, v]) => v);
 
   return (
@@ -74,6 +104,12 @@ export default async function VehiclePage({ params }) {
             </div>
           ))}
         </dl>
+        {market && (
+          <>
+            <p className="detail-note">{L.marketNote}</p>
+            <EstimateBreakdown lang={lang} b={quote.breakdown} />
+          </>
+        )}
         {showText(car.description) && <p className="detail-desc">{car.description}</p>}
         <p className="detail-note">{t.car.note}</p>
         <Link href={`/${lang}/vehicles`} className="back-link">{t.car.back}</Link>
@@ -82,4 +118,4 @@ export default async function VehiclePage({ params }) {
       <ContactBar carId={car.id} title={title} lang={lang} />
     </main>
   );
-          }
+}
