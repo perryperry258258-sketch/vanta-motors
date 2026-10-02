@@ -10,7 +10,7 @@ import { hasCJK } from '../../../lib/i18n';
 
 const EMPTY = {
   title: '', title_en: '', brand: '', model: '', year: '', color: '',
-  price: '', price_max: '', mileage: '', description: '', status: 'published',
+  price: '', price_max: '', mileage: '', description: '', status: 'published', source_owner_id: '',
 };
 
 const UNSURE_HINT = '無法從車名判斷，請確認後填寫，不確定可以留空';
@@ -42,6 +42,7 @@ function Editor() {
   const uploadedRef = useRef({});
 
   const [form, setForm] = useState(EMPTY);
+  const [partners, setPartners] = useState([]);
   const [unsure, setUnsure] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [removed, setRemoved] = useState([]);
@@ -49,6 +50,14 @@ function Editor() {
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    getSupabase()
+      .from('partners')
+      .select('id, name, active')
+      .order('name')
+      .then(({ data }) => setPartners(data || []));
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -76,6 +85,7 @@ function Editor() {
         mileage: data.mileage ?? '',
         description: data.description || '',
         status: data.status,
+        source_owner_id: data.source_owner_id || '',
       });
       setUnsure(data.ai_unsure || []);
       setPhotos((data.car_photos || []).map((p) => ({ key: p.id, id: p.id, path: p.path, url: photoUrl(p.path) })));
@@ -165,6 +175,7 @@ function Editor() {
       mileage: num(form.mileage),
       description: String(form.description).trim() || null,
       status: form.status,
+      source_owner_id: form.source_owner_id || null,
       ai_unsure: unsure,
       updated_at: new Date().toISOString(),
     };
@@ -291,6 +302,15 @@ function Editor() {
         />
       </Field>
 
+      <Field label="車源負責人">
+        <select value={form.source_owner_id} onChange={(e) => update('source_owner_id', e.target.value)}>
+          <option value="">VANTA 自有／未指定</option>
+          {partners
+            .filter((p) => p.active || p.id === form.source_owner_id)
+            .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </Field>
+
       <div className="field-grid">
         <Field label="品牌" warn={unsure.includes('brand') && UNSURE_HINT}>
           <input value={form.brand} onChange={(e) => update('brand', e.target.value)} />
@@ -340,4 +360,4 @@ function Editor() {
       </div>
     </>
   );
-        }
+}
