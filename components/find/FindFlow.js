@@ -96,6 +96,9 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
             <>
               <p className="estimate-range-label">{t.rangeLabel}</p>
               <p className="estimate-range">NT${nt(result.range.low)} – {nt(result.range.high)}</p>
+              {result.retail && (
+                <p className="estimate-sub">{t.retailLabel}　NT${nt(result.retail.low)} – {nt(result.retail.high)}</p>
+              )}
               <p className="estimate-note">{t.rangeNote}</p>
               <p className="estimate-updated">
                 {t.confidence}{t.confidenceLabel[result.confidence] || t.confidenceLabel.low}
@@ -104,7 +107,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
               <EstimateBreakdown
                 lang={lang}
                 b={result.breakdown}
-                extra={lang === 'en' ? 'Market reference range = estimated market value ±8%' : '市場參考行情 ＝ 預估市場行情 ±8%'}
+                extra={t.breakdownExtra}
               />
             </>
           ) : (
@@ -220,4 +223,4 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
       <button className="btn btn-dark sell-submit" disabled={busy}>{busy ? t.calculating : t.submit}</button>
     </form>
   );
-                     }
+    }
