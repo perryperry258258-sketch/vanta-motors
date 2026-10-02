@@ -1,16 +1,16 @@
 'use client';
 
-// 估價計算明細（我要賣車、我要找車共用）
+// 估價計算明細（我要賣車、我要找車、車輛頁共用）
 const T = {
   zh: {
     title: '估價計算明細',
-    ref: '參考新車價', age: '車齡', years: '年', yearF: '年份係數', km: '里程', kmF: '里程係數',
+    ref: '參考新車價', priceYear: '新車價年份', yearUnit: ' 年', historical: '歷史基準價參考：沒有這一年的新車價，使用最接近且不晚於車輛年份的新車價。', age: '車齡', years: '年', yearF: '年份係數', km: '里程', kmF: '里程係數',
     brandF: '品牌係數', modelF: '車款係數', cond: '車況', condF: '車況係數', market: '預估市場行情',
     noKm: '未提供',
   },
   en: {
     title: 'How this estimate is calculated',
-    ref: 'Reference new-car price', age: 'Vehicle age', years: 'yrs', yearF: 'Age factor', km: 'Mileage', kmF: 'Mileage factor',
+    ref: 'Reference new-car price', priceYear: 'New-car price year', yearUnit: '', historical: 'Historical reference: no new-car price for this exact year, so the closest earlier year is used.', age: 'Vehicle age', years: 'yrs', yearF: 'Age factor', km: 'Mileage', kmF: 'Mileage factor',
     brandF: 'Brand factor', modelF: 'Model factor', cond: 'Condition', condF: 'Condition factor', market: 'Estimated market value',
     noKm: 'Not provided',
   },
@@ -24,6 +24,7 @@ export default function EstimateBreakdown({ lang = 'zh', b, extra }) {
   const t = T[lang] || T.zh;
   const rows = [
     [t.ref, nt(b.referencePrice)],
+    ...(b.priceYear ? [[t.priceYear, `${b.priceYear}${t.yearUnit}`]] : []),
     [t.age, `${b.age} ${t.years}`],
     [t.yearF, f2(b.yearFactor)],
     [t.km, b.mileage === null || b.mileage === undefined ? t.noKm : `${Number(b.mileage).toLocaleString('en-US')} km`],
@@ -42,6 +43,7 @@ export default function EstimateBreakdown({ lang = 'zh', b, extra }) {
         ))}
         <div className="breakdown-total"><dt>{t.market}</dt><dd>{nt(b.market)}</dd></div>
       </dl>
+      {b.priceYear && b.priceYearExact === false && <p className="breakdown-extra">{t.historical}</p>}
       {extra && <p className="breakdown-extra">{extra}</p>}
     </details>
   );
