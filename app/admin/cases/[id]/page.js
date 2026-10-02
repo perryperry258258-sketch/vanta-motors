@@ -39,6 +39,8 @@ function CaseDetail() {
   const [request, setRequest] = useState('');
   const [transferMsg, setTransferMsg] = useState('');
   const [copied, setCopied] = useState(false);
+  const [lineMsg, setLineMsg] = useState('');
+  const [lineBusy, setLineBusy] = useState(false);
 
   async function load() {
     const sb = getSupabase();
@@ -101,9 +103,58 @@ function CaseDetail() {
     navigator.clipboard.writeText(msg).then(() => setCopied(true)).catch(() => setCopied(false));
   }
 
+  async function callLine(action, extra = {}) {
+    const res = await fetch('/api/admin/line', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action, caseId: c.id, ...extra }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'LINE 傳送失敗');
+    return data;
+  }
+
+  async function sendConfirmation() {
+    if (!confirm('用 LINE 傳送成交確認給客戶？客戶可以直接在 LINE 按「是，已成交」或「尚未成交」。')) return;
+    setLineBusy(true);
+    try {
+      await callLine('send_confirmation');
+      setLineMsg('已透過 LINE 傳送成交確認給客戶。');
+      load();
+    } catch (e) {
+      setLineMsg(e.message);
+    }
+    setLineBusy(false);
+  }
+
+  async function markReplied() {
+    await getSupabase().from('cases').update({ unread: false }).eq('id', c.id);
+    await addEvent('note', '已回覆客戶訊息');
+    load();
+  }
+
   function transfer() {
     if (!c.partner_id) return alert('請先指定車源負責人');
     const msg = buildTransferMessage({ ...c, customer_request: request || c.customer_request });
+
+    // 車源已綁定 LINE：直接由官方帳號通知
+    if (c.partner && c.partner.line_user_id) {
+      setTransferMsg(msg);
+      setLineBusy(true);
+      (async () => {
+        try {
+          await callLine('notify_partner', { message: msg });
+          setLineMsg(`已透過 LINE 通知 ${c.partner.name}。`);
+          await addEvent('transfer', `轉交給 ${c.partner.name}\n\n${msg}`, 'partner');
+          if (['new', 'in_progress'].includes(c.status)) await update({ status: 'transferred' });
+          else load();
+        } catch (e) {
+          setLineMsg(e.message);
+        }
+        setLineBusy(false);
+      })();
+      return;
+    }
 
     // 必須在按下的當下就複製和開啟 LINE，手機瀏覽器才不會擋
     copyTransfer(msg);
@@ -144,7 +195,13 @@ function CaseDetail() {
         <div className="case-flags">
           <span className={`badge badge-${statusTone(c.status)}`}>{STATUS_LABEL[c.status]}</span>
           {isStale(c) && <span className="badge badge-warn">超過 2 天沒有進度</span>}
+          {c.unread && <span className="badge badge-new">客戶有新訊息</span>}
         </div>
+        {c.unread && (
+          <div className="inline-actions">
+            <button onClick={markReplied}>已在 LINE 回覆，標記為已處理</button>
+          </div>
+        )}
       </div>
 
       <div className="case-section">
@@ -161,11 +218,20 @@ function CaseDetail() {
             {cu.name || cu.line_name || '未命名'}
             {cu.phone && <><br /><a href={`tel:${cu.phone}`}>{cu.phone}</a></>}
             {cu.line_name && <><br />LINE：{cu.line_name}</>}
+            {cu.line_user_id && <><br /><span className="badge badge-ok">已連結 LINE 官方帳號</span></>}
           </p>
         ) : (
           <p className="value">尚未建立客戶資料</p>
         )}
-        {cu && <div className="inline-actions"><Link href={`/admin/customers?id=${cu.id}`}>客戶資料</Link></div>}
+        {cu && (
+          <div className="inline-actions">
+            <Link href={`/admin/customers?id=${cu.id}`}>客戶資料</Link>
+            {cu.line_user_id && c.type !== 'sell' && c.status !== 'won' && (
+              <button onClick={sendConfirmation} disabled={lineBusy}>用 LINE 請客戶確認成交</button>
+            )}
+          </div>
+        )}
+        {lineMsg && <p className="result-box">{lineMsg}</p>}
       </div>
 
       <div className="case-section">
@@ -184,10 +250,12 @@ function CaseDetail() {
         </select>
         {c.type !== 'sell' && !CLOSED.includes(c.status) && (
           <div className="case-actions">
-            <button className="btn line-green" onClick={transfer}>轉交車源負責人</button>
+            <button className="btn line-green" onClick={transfer} disabled={lineBusy}>
+              {c.partner && c.partner.line_user_id ? '轉交並用 LINE 通知車源' : '轉交車源負責人'}
+            </button>
           </div>
         )}
-        {transferMsg && (
+        {transferMsg && !(c.partner && c.partner.line_user_id) && (
           <div className="result-box">
             {copied ? '已複製轉交訊息，' : ''}
             {lineUrl ? '在車源的 LINE 對話中貼上即可。' : '這位車源沒有填 LINE ID，請手動傳給對方。'}
@@ -248,4 +316,4 @@ function CaseDetail() {
       )}
     </>
   );
-                                                                         }
+            }
