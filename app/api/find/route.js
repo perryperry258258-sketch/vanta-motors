@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase, UUID_RE } from '../../../lib/supabaseAdmin';
-import { runEstimate, taiwanYear, DEFAULT_SETTINGS, findModelFactor, findCondition, priceRanges } from '../../../lib/buyback/engine';
+import { taiwanYear } from '../../../lib/buyback/engine';
+import { valuate, publicValuation } from '../../../lib/buyback/valuation';
 import { matchScore, matchTier } from '../../../lib/find';
 import { photoUrl } from '../../../lib/supabase';
 
@@ -31,41 +32,28 @@ export async function POST(req) {
       .maybeSingle();
     if (!model || !model.active || !model.brand || !model.brand.active) return fail('model not found', 404);
 
-    // 市場行情價與預估對客售價：只有選了年份、而且這個車型有新車價時才計算
+    // 市場行情價與預估對客售價：只有選了年份才計算（歷史新車價＋目前車源）
     let range = null;
     let retail = null;
     let confidence = 'none';
     let updatedAt = null;
     let breakdown = null;
+    let valuation = null;
     if (year) {
-      const [rules, dep, km, settings, mfs, conds] = await Promise.all([
-        db.from('pricing_rules').select('*').eq('model_id', model.id).eq('active', true),
-        db.from('depreciation_rules').select('*').eq('active', true),
-        db.from('mileage_rules').select('*').eq('active', true),
-        db.from('buyback_settings').select('*').eq('id', 1).maybeSingle(),
-        db.from('model_factors').select('model, factor').eq('brand_id', model.brand.id),
-        db.from('condition_factors').select('*'),
-      ]);
-      const s = { ...DEFAULT_SETTINGS, ...(settings.data || {}) };
-      const est = runEstimate({
-        rules: rules.data || [],
+      const v = await valuate(db, {
         brand: model.brand,
+        model,
         year,
         mileage: mileageMax ? Math.round(mileageMax * 0.7) : 60000,
-        depreciation: dep.data || [],
-        mileageRules: km.data || [],
-        settings: s,
-        currentYear,
-        modelFactor: findModelFactor(mfs.data, model.name),
-        condition: findCondition(conds.data, 'normal'),
+        version: String(b.version || '').slice(0, 120),
       });
-      if (est.method === 'formula' && est.center) {
-        const ranges = priceRanges(est.center, s);
-        range = ranges.market;
-        retail = ranges.retail;
-        confidence = est.quality === 'exact' ? 'medium' : 'low';
-        updatedAt = est.updatedAt;
-        breakdown = est.breakdown;
+      if (v.value) {
+        range = v.ranges.market;
+        retail = v.ranges.retail;
+        confidence = v.grade === 'A' || v.grade === 'B' ? 'medium' : 'low';
+        updatedAt = v.updatedAt;
+        breakdown = v.breakdown;
+        valuation = publicValuation(v);
       }
     }
 
@@ -142,10 +130,12 @@ export async function POST(req) {
       confidence,
       updatedAt,
       breakdown,
+      valuation,
+      version: String(b.version || '').slice(0, 120),
       matches,
     });
   } catch (e) {
     console.error(e);
     return fail('server error', 500);
   }
-        }
+}
