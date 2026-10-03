@@ -24,3 +24,11 @@
 .partner-tiles button[aria-pressed="true"] { border-color: var(--black); }
 .partner-tiles span { display: block; font-size: 13px; color: var(--ink2); }
 .partner-tiles strong { font-size: 24px; font-weight: 500; }
+
+/* 車況確認 */
+.question { padding: 14px 0; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.question:last-of-type { border-bottom: 0; }
+.question-q { font-size: 15px; line-height: 1.7; }
+.question-a { padding: 12px 14px; border-radius: 12px; background: var(--paper); white-space: pre-line; line-height: 1.7; }
+.question-done { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.7; }
+.question-alert { display: block; padding: 14px 16px; border-radius: 14px; background: var(--black); color: var(--white); margin-bottom: 14px; }
