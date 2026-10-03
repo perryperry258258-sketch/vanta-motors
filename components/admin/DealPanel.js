@@ -8,7 +8,7 @@ import {
 } from '../../lib/deal';
 
 // 管理員專用：成交、成本審核、客戶確認、結算
-export default function DealPanel({ caseRow, onChange }) {
+export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }) {
   const [sale, setSale] = useState(null);
   const [costs, setCosts] = useState([]);
   const [settlement, setSettlement] = useState(null);
@@ -150,6 +150,23 @@ export default function DealPanel({ caseRow, onChange }) {
     load();
   }
 
+  // 直接用 LINE 傳成交確認按鈕給客戶（客戶在 LINE 按「是，已成交／尚未成交」）
+  async function sendLineConfirmation() {
+    if (!confirm('用 LINE 傳送成交確認給客戶？')) return;
+    const { data } = await getSupabase().auth.getSession();
+    const res = await fetch('/api/admin/line', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session ? data.session.access_token : ''}` },
+      body: JSON.stringify({ action: 'send_confirmation', caseId: caseRow.id }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(out.error || 'LINE 傳送失敗');
+    setMsg('');
+    alert('已用 LINE 傳送成交確認給客戶。');
+    load();
+    if (onChange) onChange();
+  }
+
   function showConfirmMessage(token) {
     const url = `${window.location.origin}/confirm/${token}`;
     const text = confirmMessage(caseRow.case_no, caseRow.subject || (caseRow.car && caseRow.car.title), url);
@@ -219,6 +236,9 @@ export default function DealPanel({ caseRow, onChange }) {
             : '尚未請客戶確認'}
       </p>
       <div className="inline-actions">
+        {hasCustomerLine && lastResponse?.response !== 'confirmed' && (
+          <button onClick={sendLineConfirmation}>用 LINE 請客戶確認成交</button>
+        )}
         {pendingConfirm ? (
           <button onClick={() => showConfirmMessage(pendingConfirm.token)}>複製確認訊息</button>
         ) : (
@@ -324,4 +344,4 @@ export default function DealPanel({ caseRow, onChange }) {
       {settlement && <p className="admin-muted">目前狀態：{SETTLEMENT_LABEL[settlement.settlement_status]}</p>}
     </div>
   );
-              }
+          }
