@@ -48,3 +48,14 @@
 
 /* 車輛頁：合作車源標示 */
 .detail-tag { font-size: 12px; letter-spacing: .12em; color: var(--mute); margin-bottom: 8px; text-transform: uppercase; }
+
+/* 在售車輛：品牌分類、篩選、排序 */
+.brand-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; margin-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.brand-chips::-webkit-scrollbar { display: none; }
+.brand-chips button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--white); font-size: 14px; color: var(--ink2); white-space: nowrap; }
+.brand-chips button[aria-pressed="true"] { background: var(--black); border-color: var(--black); color: var(--white); }
+.brand-chips small { font-size: 12px; opacity: .6; font-variant-numeric: tabular-nums; }
+.search-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.search-grid input { grid-column: 1 / -1; }
+@media (min-width: 900px) { .search-grid { grid-template-columns: 2fr 1fr 1fr 1fr; } .search-grid input { grid-column: auto; } }
+.search-meta { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 16px; font-size: 14px; color: var(--mute); }
