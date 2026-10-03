@@ -9,6 +9,8 @@ import { CLOSED, STATUS_LABEL, TYPE_LABEL, isStale, statusTone, shortDate } from
 
 // 跟進日期已到（今天或更早）的進行中案件
 const dueFollow = (c) => c.follow_up_at && !CLOSED.includes(c.status) && new Date(c.follow_up_at) <= new Date(new Date().setHours(23, 59, 59, 999));
+// 車源回報成交、客戶回覆尚未成交
+const disputed = (c) => c.disputed_at && c.status !== 'won';
 
 export default function CasesPage() {
   return (
@@ -64,7 +66,7 @@ function Cases() {
       unread: list.filter((c) => c.unread).length,
       followup: list.filter(dueFollow).length,
       open: list.filter((c) => !CLOSED.includes(c.status)).length,
-      attention: list.filter((c) => isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell')).length,
+      attention: list.filter((c) => disputed(c) || isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell')).length,
       won: list.filter((c) => c.status === 'won').length,
       closed: list.filter((c) => c.status === 'lost' || c.status === 'cancelled').length,
       all: list.length,
@@ -79,7 +81,7 @@ function Cases() {
         if (tab === 'unread') return c.unread;
         if (tab === 'followup') return dueFollow(c);
         if (tab === 'open') return !CLOSED.includes(c.status);
-        if (tab === 'attention') return isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell');
+        if (tab === 'attention') return disputed(c) || isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell');
         if (tab === 'won') return c.status === 'won';
         if (tab === 'closed') return c.status === 'lost' || c.status === 'cancelled';
         return true;
@@ -157,6 +159,7 @@ function Cases() {
               </p>
               <div className="case-flags">
                 {c.unread && <span className="badge badge-new">客戶有新訊息</span>}
+                {disputed(c) && <span className="badge badge-warn">⚠️ 成交資料不一致</span>}
                 {dueFollow(c) && <span className="badge badge-warn">今天要跟進{c.follow_up_note ? `：${c.follow_up_note}` : ''}</span>}
                 {c.follow_up_at && !dueFollow(c) && !CLOSED.includes(c.status) && <span className="badge badge-mid">{shortDate(c.follow_up_at).split(' ')[0]} 跟進</span>}
                 {isStale(c) && <span className="badge badge-warn">超過 2 天沒有進度</span>}
@@ -168,4 +171,4 @@ function Cases() {
       )}
     </>
   );
-          }
+                  }
