@@ -6,7 +6,8 @@ import { site } from '../../lib/site';
 import { getSupabase } from '../../lib/supabase';
 import { compressImage } from '../../lib/image';
 import { buildLineMessage, lineChatUrl, formatNT, formatKm, formatDate } from '../../lib/buyback/format';
-import EstimateBreakdown from '../EstimateBreakdown';
+import EstimateBreakdown, { ValuationSummary } from '../EstimateBreakdown';
+import VersionSelect from '../VersionSelect';
 
 const PRICE_LABELS = {
   zh: { buyback: '車商建議收購價', market: '市場行情價' },
@@ -22,6 +23,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
   const [brandId, setBrandId] = useState('');
   const [modelId, setModelId] = useState('');
   const [year, setYear] = useState('');
+  const [version, setVersion] = useState('');
   const [mileage, setMileage] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -33,6 +35,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
   const [clicked, setClicked] = useState(false);
 
   const brand = brands.find((b) => b.id === brandId);
+  const modelName = brand && (brand.models.find((m) => m.id === modelId) || {}).name;
   const years = useMemo(() => {
     const list = [];
     for (let y = maxYear; y >= minYear; y--) list.push(y);
@@ -57,7 +60,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
     if (!brandId || !modelId || !year || mileage === '') return setError(t.missing);
     setBusy(true);
     try {
-      const res = await postJSON('/api/buyback/estimate', { modelId, year: Number(year), mileage: Number(mileage), lang });
+      const res = await postJSON('/api/buyback/estimate', { modelId, year: Number(year), mileage: Number(mileage), version, lang });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'error');
       setResult(data);
@@ -132,7 +135,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
     return (
       <div className="estimate">
         <p className="estimate-car-label">{t.yourCar}</p>
-        <h2 className="estimate-car">{`${result.year} ${result.brand} ${result.model}`}</h2>
+        <h2 className="estimate-car">{`${result.year} ${result.brand} ${result.model}${result.version ? ` ${result.version}` : ''}`}</h2>
         <p className="estimate-km">{formatKm(result.mileage)}</p>
 
         <div className="estimate-box">
@@ -148,14 +151,15 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
               {result.updatedAt && (
                 <p className="estimate-updated">{t.updated}{formatDate(lang, result.updatedAt)}</p>
               )}
+              <ValuationSummary lang={lang} v={result.valuation} />
               <EstimateBreakdown
                 lang={lang}
                 b={result.breakdown}
                 extra={
                   result.spreadLow
                     ? lang === 'en'
-                      ? `Buyback range = estimated market value × ${Math.round(result.spreadLow * 100)}%–${Math.round(result.spreadHigh * 100)}%`
-                      : `預估收購行情 ＝ 預估市場行情 × ${Math.round(result.spreadLow * 100)}%～${Math.round(result.spreadHigh * 100)}%`
+                      ? `Dealer buyback = system valuation × ${Math.round(result.spreadLow * 100)}%–${Math.round(result.spreadHigh * 100)}%`
+                      : `車商建議收購價 ＝ 系統估值 × ${Math.round(result.spreadLow * 100)}%～${Math.round(result.spreadHigh * 100)}%`
                     : null
                 }
               />
@@ -266,6 +270,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
           onChange={(e) => {
             setBrandId(e.target.value);
             setModelId('');
+            setVersion('');
           }}
         >
           <option value="">{t.selectBrand}</option>
@@ -275,7 +280,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
 
       <label className="sell-step">
         <span className="sell-step-label"><small>Step 2</small>{t.model}</span>
-        <select value={modelId} onChange={(e) => setModelId(e.target.value)} disabled={!brand}>
+        <select value={modelId} onChange={(e) => { setModelId(e.target.value); setVersion(''); }} disabled={!brand}>
           <option value="">{brand ? t.selectModel : t.selectBrandFirst}</option>
           {brand && brand.models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
@@ -283,11 +288,13 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
 
       <label className="sell-step">
         <span className="sell-step-label"><small>Step 3</small>{t.year}</span>
-        <select value={year} onChange={(e) => setYear(e.target.value)}>
+        <select value={year} onChange={(e) => { setYear(e.target.value); setVersion(''); }}>
           <option value="">{t.selectYear}</option>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </label>
+
+      <VersionSelect lang={lang} brand={brand && brand.name} model={modelName} year={year} value={version} onChange={setVersion} />
 
       <div className="sell-step">
         <label className="sell-step-label" htmlFor="sell-km"><small>Step 4</small>{t.mileage}</label>
