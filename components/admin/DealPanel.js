@@ -7,6 +7,40 @@ import {
   nt, toneOf, confirmMessage, signedDocUrls,
 } from '../../lib/deal';
 
+const ROLE_LABEL = { admin: '管理員', staff: '客服', partner: '車源' };
+const TABLE_LABEL = { sales: '成交', sale_costs: '成本', settlements: '結算', customer_confirmations: '客戶確認' };
+const FIELD = {
+  sale_price: '成交價', sale_date: '成交日期', verification: '成交確認', customer_confirmation: '客戶確認', partner_status: '車源回報',
+  amount: '金額', approval: '審核', reject_reason: '拒絕原因', cost_date: '成本日期', description: '說明', cost_type_name: '類型',
+  settlement_status: '結算狀態', settlement_date: '結算日', total_cost: '核准成本', gross_profit: '可分配利潤', vanta_share: 'VANTA 分潤', partner_share: '車源分潤',
+  response: '客戶回覆', notes: '備註',
+};
+const VALUE = {
+  pending: '待處理', approved: '已核准', rejected: '已拒絕', confirmed: '已確認', conflict: '不一致', denied: '尚未成交',
+  reported: '已回報', not_reported: '未回報', settled: '已結算', disputed: '爭議中',
+};
+const MONEY = ['sale_price', 'amount', 'total_cost', 'gross_profit', 'vanta_share', 'partner_share'];
+const show = (k, v) => (v === null || v === undefined || v === '' ? '—' : MONEY.includes(k) ? nt(v) : VALUE[v] || String(v));
+
+function auditLine(l) {
+  const t = TABLE_LABEL[l.table_name] || l.table_name;
+  if (l.action === 'INSERT') {
+    const n = l.new_data || {};
+    if (l.table_name === 'sale_costs') return `新增成本：${n.cost_type_name || ''} ${nt(n.amount)}（${show('approval', n.approval)}）`;
+    if (l.table_name === 'sales') return `建立成交：${nt(n.sale_price)}`;
+    return `建立${t}`;
+  }
+  if (l.action === 'DELETE') {
+    const o = l.old_data || {};
+    return l.table_name === 'sale_costs' ? `刪除成本：${o.cost_type_name || ''} ${nt(o.amount)}` : `刪除${t}`;
+  }
+  const o = l.old_data || {};
+  const n = l.new_data || {};
+  const changed = Object.keys(FIELD).filter((k) => JSON.stringify(o[k]) !== JSON.stringify(n[k]));
+  if (!changed.length) return `${t}更新`;
+  return `${t}：${changed.map((k) => `${FIELD[k]} ${show(k, o[k])} → ${show(k, n[k])}`).join('、')}`;
+}
+
 // 管理員專用：成交、成本審核、客戶確認、結算
 export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }) {
   const [sale, setSale] = useState(null);
@@ -21,6 +55,7 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
   const [msg, setMsg] = useState('');
   const [copied, setCopied] = useState(false);
   const [stForm, setStForm] = useState(null);
+  const [audit, setAudit] = useState([]);
 
   async function load() {
     const sb = getSupabase();
@@ -34,12 +69,33 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
     setCosts(saleRow ? [...(saleRow.sale_costs || [])].sort((a, b) => a.created_at.localeCompare(b.created_at)) : []);
     setConfirms(c.data || []);
     setTypes(t.data || []);
+    let st = null;
     if (saleRow) {
       const { data } = await sb.from('settlements').select('*').eq('sale_id', saleRow.id).maybeSingle();
-      setSettlement(data || null);
-      setStForm(data ? { status: data.settlement_status, date: data.settlement_date || '', notes: data.notes || '' } : null);
+      st = data || null;
+      setSettlement(st);
+      setStForm(st ? { status: st.settlement_status, date: st.settlement_date || '', notes: st.notes || '' } : null);
     } else {
       setSettlement(null);
+    }
+    // 成交、成本、結算、客戶確認的變更紀錄（誰在什麼時候改了什麼）
+    const ids = [saleRow && saleRow.id, st && st.id, ...((saleRow && saleRow.sale_costs) || []).map((x) => x.id), ...(c.data || []).map((x) => x.id)].filter(Boolean);
+    if (ids.length) {
+      const { data: logs } = await sb
+        .from('audit_log')
+        .select('*')
+        .in('table_name', ['sales', 'sale_costs', 'settlements', 'customer_confirmations'])
+        .in('row_id', ids.map(String))
+        .order('created_at', { ascending: false })
+        .limit(100);
+      const actorIds = [...new Set((logs || []).map((l) => l.actor_id).filter(Boolean))];
+      const { data: people } = actorIds.length
+        ? await sb.from('profiles').select('user_id, display_name, role').in('user_id', actorIds)
+        : { data: [] };
+      const who = Object.fromEntries((people || []).map((p) => [p.user_id, `${p.display_name || ''}（${ROLE_LABEL[p.role] || p.role}）`]));
+      setAudit((logs || []).map((l) => ({ ...l, who: l.actor_id ? who[l.actor_id] || '後台使用者' : '系統／客戶' })));
+    } else {
+      setAudit([]);
     }
     setLoaded(true);
   }
@@ -109,6 +165,7 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
         cost_type_name: type.name,
         amount,
         description: costForm.desc.trim() || null,
+        cost_date: costForm.date || null,
         approval: 'approved',
         approved_at: new Date().toISOString(),
       }),
@@ -267,6 +324,9 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
                 {c.description ? `・${c.description}` : ''}
                 {c.reject_reason ? `・拒絕原因：${c.reject_reason}` : ''}
               </p>
+              <p className="admin-muted">
+                成本日期 {c.cost_date || '—'}｜提交 {new Date(c.created_at).toLocaleString('zh-TW', { hour12: false })}
+              </p>
               <div className="inline-actions">
                 {c.approval !== 'approved' && <button onClick={() => reviewCost(c, 'approved')}>核准</button>}
                 {c.approval !== 'rejected' && <button className="danger" onClick={() => reviewCost(c, 'rejected')}>拒絕</button>}
@@ -292,6 +352,7 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
                 </select>
               </label>
               <label className="field"><span>金額（元）</span><input type="number" inputMode="numeric" value={costForm.amount} onChange={(e) => setCostForm({ ...costForm, amount: e.target.value })} /></label>
+              <label className="field"><span>成本日期</span><input type="date" value={costForm.date} onChange={(e) => setCostForm({ ...costForm, date: e.target.value })} /></label>
               <label className="field"><span>說明</span><input value={costForm.desc} onChange={(e) => setCostForm({ ...costForm, desc: e.target.value })} /></label>
               <div className="form-actions">
                 <button className="btn btn-light" onClick={() => setCostForm(null)}>取消</button>
@@ -299,7 +360,7 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
               </div>
             </div>
           ) : (
-            <div className="inline-actions"><button onClick={() => setCostForm({ typeId: '', amount: '', desc: '' })}>＋ 代為新增成本</button></div>
+            <div className="inline-actions"><button onClick={() => setCostForm({ typeId: '', amount: '', desc: '', date: new Date().toISOString().slice(0, 10) })}>＋ 代為新增成本</button></div>
           )}
         </>
       )}
@@ -342,6 +403,21 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
         sale && <p className="admin-muted" style={{ marginTop: 16 }}>成交確認完成（車源回報＋客戶確認）後，系統會自動建立結算。</p>
       )}
       {settlement && <p className="admin-muted">目前狀態：{SETTLEMENT_LABEL[settlement.settlement_status]}</p>}
+
+      {audit.length > 0 && (
+        <details className="viewing-history" style={{ marginTop: 16 }}>
+          <summary>成交與結算變更紀錄（{audit.length}）</summary>
+          <ul className="rank">
+            {audit.map((l) => (
+              <li key={l.id} style={{ display: 'block' }}>
+                <span>{auditLine(l)}</span>
+                <br />
+                <span className="admin-muted">{l.who}｜{new Date(l.created_at).toLocaleString('zh-TW', { hour12: false })}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
-          }
+        }
