@@ -17,7 +17,15 @@ export default function BulkPage() {
   );
 }
 
-const STATE = { ready: '待上傳', exists: '已存在', uploading: '上傳中', done: '完成', failed: '失敗', skipped: '略過' };
+const STATE = { ready: '待上傳', exists: '已存在', dupe: '重複資料夾', uploading: '上傳中', done: '完成', failed: '失敗', skipped: '略過' };
+
+// 照片指紋：前 5 張照片的檔名＋檔案大小。同一台車的資料夾被複製、改名，指紋還是一樣
+async function photoSig(files) {
+  const text = files.slice(0, 5).map((f) => `${f.name}|${f.size}`).join('\n');
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+const titleKey = (t) => String(t || '').toLowerCase().replace(/\s+/g, '');
 
 function Bulk() {
   const [rows, setRows] = useState([]);
@@ -34,21 +42,41 @@ function Bulk() {
     getSupabase().from('partners').select('id, name, active').order('name').then(({ data }) => setPartners(data || []));
   }, []);
 
+  // 防止重複：①照片指紋和網站上的車相同 → 已存在（一定是同一台）
+  //           ②這次選的資料夾裡有兩個指紋相同 → 只留第一個
+  //           ③只有車名相同 → 預設不勾選，提醒確認
   async function pick(fileList) {
     const groups = groupFiles(Array.from(fileList || []));
-    // 已經有同名車輛的，預設不重複上傳
-    const { data: existing } = await getSupabase().from('cars').select('title').limit(5000);
-    const titles = new Set((existing || []).map((c) => c.title.trim()));
+    const sigs = await Promise.all(groups.map((g) => photoSig(g.files)));
+    const { data: existing } = await getSupabase().from('cars').select('title, import_sig').limit(5000);
+    const siteSigs = new Set((existing || []).map((c) => c.import_sig).filter(Boolean));
+    const siteTitles = new Set((existing || []).map((c) => titleKey(c.title)));
+    const seen = new Set();
     setRows(
-      groups.map((g) => ({
-        ...g,
-        // 沒有年份的先不勾選，補完資料再上傳（避免上傳後算不出行情）
-        include: !titles.has(g.title) && !!g.year && !!g.brand,
-        state: titles.has(g.title) ? 'exists' : 'ready',
-        excluded: new Set(),
-        cover: 0,
-        error: '',
-      }))
+      groups.map((g, i) => {
+        const sig = sigs[i];
+        let state = 'ready';
+        const notes = [...g.notes];
+        if (siteSigs.has(sig)) state = 'exists';
+        else if (seen.has(sig)) {
+          state = 'dupe';
+          notes.unshift('和這次選的另一個資料夾照片完全相同，不重複上傳');
+        } else if (siteTitles.has(titleKey(g.title))) {
+          notes.unshift('網站上已有同名車輛，可能是同一台，確認不是重複再勾選上傳');
+        }
+        seen.add(sig);
+        return {
+          ...g,
+          notes,
+          sig,
+          // 可能重複、或認不出品牌的先不勾選（沒有年份也可以上傳，只是算不出行情）
+          include: state === 'ready' && !!g.brand && !siteTitles.has(titleKey(g.title)),
+          state,
+          excluded: new Set(),
+          cover: 0,
+          error: '',
+        };
+      })
     );
   }
 
@@ -83,11 +111,14 @@ function Bulk() {
         price_max: null,
         status: publish ? 'published' : 'draft',
         source_owner_id: ownerId || null,
+        import_sig: r.sig,
         slug: makeSlug(r.titleEn.trim() || title),
         updated_at: new Date().toISOString(),
       })
       .select('id')
       .single();
+    // 資料庫也擋重複：同樣照片指紋的車已經存在
+    if (error && error.code === '23505' && String(error.message).includes('import_sig')) throw Object.assign(new Error('網站上已經有這台車（照片相同），不重複上傳'), { exists: true });
     if (error) throw error;
 
     const rowsToInsert = [];
@@ -142,7 +173,8 @@ function Bulk() {
           error: skipped.length ? `完成，略過 ${skipped.length} 張讀不到的照片：${skipped.join('、')}` : '',
         });
       } catch (e) {
-        update(r.key, { state: 'failed', include: true, error: e.message || String(e) });
+        if (e.exists) update(r.key, { state: 'exists', include: false, error: e.message });
+        else update(r.key, { state: 'failed', include: true, error: e.message || String(e) });
       }
       done++;
     }
@@ -193,6 +225,7 @@ function Bulk() {
             <ul className="rank" style={{ marginTop: 8 }}>
               <li><span>找到的車輛</span><span>{rows.length} 台</span></li>
               <li><span>已存在（預設略過）</span><span>{rows.filter((r) => r.state === 'exists').length} 台</span></li>
+              <li><span>重複資料夾（略過）</span><span>{rows.filter((r) => r.state === 'dupe').length} 個</span></li>
               <li><span>這次要上傳</span><span>{selected.length} 台、{photoCount} 張照片</span></li>
               <li><span>已完成</span><span>{rows.filter((r) => r.state === 'done').length} 台</span></li>
             </ul>
@@ -210,10 +243,10 @@ function Bulk() {
             <div className="case-card" key={r.key}>
               <div className="case-card-top">
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input type="checkbox" style={{ width: 'auto', height: 'auto', margin: 0 }} checked={r.include} disabled={running || r.state === 'done'} onChange={(e) => update(r.key, { include: e.target.checked })} />
+                  <input type="checkbox" style={{ width: 'auto', height: 'auto', margin: 0 }} checked={r.include} disabled={running || ['done', 'exists', 'dupe'].includes(r.state)} onChange={(e) => update(r.key, { include: e.target.checked })} />
                   <span className="case-no">{r.brandFolder}{r.carFolder ? ` / ${r.carFolder}` : '（照片直接在品牌資料夾）'}</span>
                 </label>
-                <span className={`badge badge-${r.state === 'done' ? 'ok' : r.state === 'failed' ? 'warn' : r.state === 'exists' ? 'off' : 'mid'}`}>{STATE[r.state]}</span>
+                <span className={`badge badge-${r.state === 'done' ? 'ok' : r.state === 'failed' ? 'warn' : ['exists', 'dupe'].includes(r.state) ? 'off' : 'mid'}`}>{STATE[r.state]}</span>
               </div>
               <div className="field-grid">
                 <label className="field"><span>車名</span><input {...setField(r, 'title')} /></label>
@@ -274,4 +307,4 @@ function Thumbs({ row, skipFirst, onChange, disabled }) {
       })}
     </div>
   );
-          }
+    }
