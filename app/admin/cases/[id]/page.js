@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import AdminShell, { useRole } from '../../../../components/admin/AdminShell';
 import DealPanel from '../../../../components/admin/DealPanel';
 import ViewingPanel from '../../../../components/case/ViewingPanel';
+import QuestionsPanel from '../../../../components/case/QuestionsPanel';
 import { getSupabase } from '../../../../lib/supabase';
 import {
   CASE_STATUS, STATUS_LABEL, TYPE_LABEL, SOURCE_LABEL, CLOSED,
@@ -285,6 +286,10 @@ function CaseDetail() {
         )}
       </div>
 
+      {c.type !== 'sell' && c.partner_id && (
+        <QuestionsPanel caseRow={c} mode="staff" isAdmin={role === 'admin'} hasCustomerLine={!!(cu && cu.line_user_id)} onChange={load} />
+      )}
+
       {c.type !== 'sell' && c.partner_id && <ViewingPanel caseRow={c} mode="staff" isAdmin={role === 'admin'} onChange={load} />}
 
       <div className="case-section">
@@ -335,4 +340,4 @@ function CaseDetail() {
       )}
     </>
   );
-                                                           }
+          }
