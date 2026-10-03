@@ -41,3 +41,7 @@
 .valuation dt { color: var(--mute); flex: 0 0 auto; }
 .valuation dd { text-align: right; }
 .valuation dd small { display: block; font-size: 12px; color: var(--mute); }
+
+/* 車輛卡片價格 */
+.card-price { margin-top: 4px; font-size: 15px; color: var(--black); font-variant-numeric: tabular-nums; }
+.card-price-market { color: var(--ink2); }
