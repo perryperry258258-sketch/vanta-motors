@@ -15,8 +15,8 @@ export default function MarketGapsPage() {
 const REASONS = [
   ['no_year', '沒有年份', '在車輛編輯頁補上年份。'],
   ['brand', '品牌對不到', '品牌欄空白或寫法不同（例如中文品牌）。請在車輛編輯頁把品牌改成英文，例如 Toyota、BMW。'],
-  ['model', '車型對不到', '車型不在行情資料庫，或車名寫法系統認不得。把車名和這張表截圖給 Claude，可以補車型或加別名。'],
-  ['no_price', '有車型、沒有新車價', '車型對到了，但歷史新車價資料庫沒有這個車型的價格。需要補新車價資料。'],
+  ['model', '車型對不到', '車型不在行情資料庫，或車名寫法系統認不得。按「複製清單」貼給 Claude，可以補車型或加別名。'],
+  ['no_price', '有車型、沒有新車價', '車型對到了，但歷史新車價資料庫沒有這個車型的價格。按「複製清單」貼給 Claude 補新車價。'],
 ];
 const LABEL = Object.fromEntries(REASONS.map(([k, l]) => [k, l]));
 const STATUS = { published: '上架', draft: '草稿', unlisted: '下架' };
@@ -28,6 +28,9 @@ function Gaps() {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [tab, setTab] = useState('missing');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => setCopied(false), [tab, scope]);
 
   useEffect(() => {
     setRows(null);
@@ -41,14 +44,22 @@ function Gaps() {
   const counts = useMemo(() => {
     const c = { ok: 0, missing: 0 };
     (rows || []).forEach((r) => {
-      c[r.reason] = (c[r.reason] || 0) + 1;
-      if (r.reason !== 'ok') c.missing += 1;
-      else c.ok += 1;
+      if (r.reason === 'ok') c.ok += 1;
+      else {
+        c.missing += 1;
+        c[r.reason] = (c[r.reason] || 0) + 1;
+      }
     });
     return c;
   }, [rows]);
 
   const list = (rows || []).filter((r) => (tab === 'missing' ? r.reason !== 'ok' : r.reason === tab));
+
+  // 把目前分頁的清單複製成文字，方便貼給 Claude 補車型或新車價
+  function copyList() {
+    const text = list.map((r) => `${r.reason === 'ok' ? '有行情' : LABEL[r.reason]}｜${r.title}｜品牌欄 ${r.brand || '空白'}｜車型欄 ${r.model || '空白'}｜年份 ${r.year || '空白'}`).join('\n');
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => setCopied(true)).catch(() => {});
+  }
 
   return (
     <>
@@ -79,6 +90,11 @@ function Gaps() {
             <button aria-pressed={tab === 'ok'} onClick={() => setTab('ok')}>有行情 {counts.ok}</button>
           </div>
           {REASONS.filter(([k]) => k === tab).map(([k, l, how]) => <p key={k} className="admin-muted">怎麼修：{how}</p>)}
+          {list.length > 0 && (
+            <div className="inline-actions">
+              <button onClick={copyList}>{copied ? `已複製 ${list.length} 台，可以貼給 Claude` : `複製這 ${list.length} 台的清單`}</button>
+            </div>
+          )}
           {list.length === 0 && <p className="admin-muted">這裡沒有車輛。</p>}
           {list.map((r) => (
             <div className="case-card" key={r.id}>
@@ -100,4 +116,4 @@ function Gaps() {
       )}
     </>
   );
-            }
+}
