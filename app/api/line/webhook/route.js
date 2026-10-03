@@ -310,7 +310,7 @@ async function handlePostback(db, event) {
 
   const { data: row } = await db
     .from('customer_confirmations')
-    .select('id, response, expires_at')
+    .select('id, case_id, response, expires_at')
     .eq('token', token)
     .maybeSingle();
   if (!row) return;
@@ -327,6 +327,13 @@ async function handlePostback(db, event) {
     .update({ response, responded_at: new Date().toISOString() })
     .eq('id', row.id)
     .is('response', null);
+  // 客戶回覆「尚未成交」而車源已回報成交 → 資料不一致，提醒管理員，不進入分潤
+  if (response === 'denied') {
+    await addCaseEvent(db, row.case_id, '⚠️ 客戶回覆「尚未成交」。若車源已回報成交，雙方資料不一致，請管理員確認，暫不進入分潤。', { actor: '客戶（LINE）' });
+    await db.from('cases').update({ unread: true, last_customer_msg_at: new Date().toISOString() }).eq('id', row.case_id);
+  } else {
+    await addCaseEvent(db, row.case_id, '客戶在 LINE 確認已完成購車', { visibility: 'partner', actor: '客戶（LINE）' });
+  }
   await reply(event.replyToken, [
     text(response === 'confirmed' ? '已收到您的確認，謝謝您選擇 VANTA MOTORS。' : '已收到，我們會再與您聯繫。'),
   ]);
