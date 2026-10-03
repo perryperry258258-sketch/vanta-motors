@@ -42,7 +42,8 @@ function Bulk() {
     setRows(
       groups.map((g) => ({
         ...g,
-        include: !titles.has(g.title),
+        // 沒有年份的先不勾選，補完資料再上傳（避免上傳後算不出行情）
+        include: !titles.has(g.title) && !!g.year && !!g.brand,
         state: titles.has(g.title) ? 'exists' : 'ready',
         excluded: new Set(),
         cover: 0,
@@ -104,7 +105,8 @@ function Bulk() {
           continue;
         }
         const path = `${car.id}/${crypto.randomUUID()}.jpg`;
-        const { error: upErr } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
+        // upsert：網路不穩時瀏覽器重送同一張，不會出現「The resource already exists」
+        const { error: upErr } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true });
         if (upErr) throw upErr;
         rowsToInsert.push({ car_id: car.id, path, sort_order: rowsToInsert.length });
       }
@@ -209,7 +211,7 @@ function Bulk() {
               <div className="case-card-top">
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <input type="checkbox" style={{ width: 'auto', height: 'auto', margin: 0 }} checked={r.include} disabled={running || r.state === 'done'} onChange={(e) => update(r.key, { include: e.target.checked })} />
-                  <span className="case-no">{r.brandFolder} / {r.carFolder}</span>
+                  <span className="case-no">{r.brandFolder}{r.carFolder ? ` / ${r.carFolder}` : '（照片直接在品牌資料夾）'}</span>
                 </label>
                 <span className={`badge badge-${r.state === 'done' ? 'ok' : r.state === 'failed' ? 'warn' : r.state === 'exists' ? 'off' : 'mid'}`}>{STATE[r.state]}</span>
               </div>
