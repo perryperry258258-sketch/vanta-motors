@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { requireRole, UUID_RE } from '../../../../lib/supabaseAdmin';
 import { validateSlots, sendSlotsToCustomer, addCaseEvent, fmtSlot } from '../../../../lib/viewing';
+import { RESULT_LABEL, toInt } from '../../../../lib/results';
+import { sendSaleConfirmation } from '../../../../lib/confirm';
 
 export const dynamic = 'force-dynamic';
 
 const fail = (error, status = 400) => NextResponse.json({ error }, { status });
 const CLOSED = ['won', 'lost', 'cancelled'];
 
-// 車源操作案件：接受、無法配合、提供看車時間、回覆車況
+// 車源操作案件：接受、無法配合、提供看車時間、回覆車況、回報看車結果、回報成交後通知客戶確認
 // 一律在伺服器確認「這個案件指派給這位車源」，前端傳來的 partner_id 不採用
 export async function POST(req) {
   const ctx = await requireRole(req, ['partner']);
@@ -83,6 +85,64 @@ export async function POST(req) {
       await addCaseEvent(db, c.id, `車源回覆車況：\n問：${q.question}\n答：${answer}`, { visibility: 'partner', actor });
       await db.from('cases').update({ unread: true }).eq('id', c.id);
       return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'viewing_result') {
+      const result = String((body && body.result) || '');
+      if (!RESULT_LABEL[result]) return fail('請選擇看車結果');
+      const str = (v, n) => String(v || '').trim().slice(0, n) || null;
+      const rec = {
+        case_id: c.id,
+        partner_id: profile.partner_id,
+        result,
+        customer_budget: toInt(body.budget),
+        partner_quote: toInt(body.quote),
+        customer_reaction: str(body.reaction, 500),
+        customer_questions: str(body.questions, 500),
+        next_step: str(body.nextStep, 300),
+        note: str(body.note, 500),
+        created_by: ctx.user.id,
+        created_by_label: actor,
+      };
+      // 價格改變要留下紀錄：和上一次的報價比較
+      const { data: prev } = await db
+        .from('viewing_results')
+        .select('partner_quote')
+        .eq('case_id', c.id)
+        .not('partner_quote', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const { error } = await db.from('viewing_results').insert(rec);
+      if (error) throw error;
+
+      const patch = { last_viewing_result: result, viewing_reported_at: now, unread: true };
+      if (result === 'quoted') patch.status = 'quoted';
+      await db.from('cases').update(patch).eq('id', c.id);
+
+      const nt = (n) => `NT$${n.toLocaleString('en-US')}`;
+      const lines = [
+        `看車結果：${RESULT_LABEL[result]}`,
+        rec.customer_budget && `客戶預算：${nt(rec.customer_budget)}`,
+        rec.partner_quote && `車源報價：${nt(rec.partner_quote)}`,
+        rec.customer_reaction && `客戶反應：${rec.customer_reaction}`,
+        rec.customer_questions && `客戶問題：${rec.customer_questions}`,
+        rec.next_step && `下一步：${rec.next_step}`,
+        rec.note && `備註：${rec.note}`,
+      ].filter(Boolean);
+      await addCaseEvent(db, c.id, lines.join('\n'), { visibility: 'partner', actor });
+      const last = prev && prev[0] && prev[0].partner_quote;
+      if (last && rec.partner_quote && last !== rec.partner_quote) {
+        await addCaseEvent(db, c.id, `車源報價變更：${nt(last)} → ${nt(rec.partner_quote)}`, { visibility: 'partner', actor });
+      }
+      return NextResponse.json({ ok: true, sold: result === 'sold' });
+    }
+
+    if (action === 'sale_reported') {
+      // 車源用既有流程回報成交後呼叫：確認真的有回報，再自動請客戶確認
+      const { data: sale } = await db.from('sales').select('id, partner_status').eq('case_id', c.id).maybeSingle();
+      if (!sale || sale.partner_status !== 'reported') return fail('請先回報成交');
+      const r = await sendSaleConfirmation(db, c.id, { actor: 'VANTA 系統', createdBy: ctx.user.id });
+      return NextResponse.json({ ok: true, ...r });
     }
 
     return fail('invalid action');
