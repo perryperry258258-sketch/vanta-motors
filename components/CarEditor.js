@@ -6,11 +6,21 @@ import { getSupabase, photoUrl, BUCKET } from '../lib/supabase';
 import { parseTitle, makeSlug } from '../lib/parseTitle';
 import { compressImage } from '../lib/image';
 import { hasCJK } from '../lib/i18n';
+import VehicleHistory from './VehicleHistory';
 
 const EMPTY = {
   title: '', title_en: '', brand: '', model: '', year: '', color: '',
   price: '', price_max: '', mileage: '', description: '', status: 'published', source_owner_id: '',
+  accident_info: '', flood_info: '', repair_info: '', maintenance_info: '',
 };
+
+// 車況資料（內部紀錄，不顯示在網站）：每次修改都會保留舊值、新值、修改人與時間
+const CONDITION_FIELDS = [
+  ['accident_info', '事故紀錄', '例如：無重大事故／右前葉子板鈑金'],
+  ['flood_info', '泡水紀錄', '例如：無泡水紀錄'],
+  ['repair_info', '維修紀錄', '例如：2025/6 更換變速箱油'],
+  ['maintenance_info', '保養紀錄', '例如：原廠定保至 6 萬公里'],
+];
 
 const UNSURE_HINT = '無法從車名判斷，請確認後填寫，不確定可以留空';
 
@@ -43,6 +53,7 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
+  const [infoMeta, setInfoMeta] = useState({ at: null, by: null });
 
   useEffect(() => {
     if (isPartner) return;
@@ -80,7 +91,12 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
         description: data.description || '',
         status: data.status,
         source_owner_id: data.source_owner_id || '',
+        accident_info: data.accident_info || '',
+        flood_info: data.flood_info || '',
+        repair_info: data.repair_info || '',
+        maintenance_info: data.maintenance_info || '',
       });
+      setInfoMeta({ at: data.info_updated_at, by: data.info_updated_by });
       setReview({ status: data.review_status, note: data.review_note });
       setUnsure(data.ai_unsure || []);
       setPhotos((data.car_photos || []).map((p) => ({ key: p.id, id: p.id, path: p.path, url: photoUrl(p.path) })));
@@ -170,6 +186,10 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
       price_max: priceMax,
       mileage: num(form.mileage),
       description: String(form.description).trim() || null,
+      accident_info: String(form.accident_info).trim() || null,
+      flood_info: String(form.flood_info).trim() || null,
+      repair_info: String(form.repair_info).trim() || null,
+      maintenance_info: String(form.maintenance_info).trim() || null,
       ai_unsure: unsure,
       updated_at: new Date().toISOString(),
     };
@@ -364,6 +384,17 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
         />
       </Field>
 
+      <h2 className="admin-sub">車況資料</h2>
+      <p className="admin-muted">
+        內部紀錄，不會顯示在網站。{isPartner ? '請只填已確認的資訊，' : '由車源提供，'}每次修改都會保留修改前的內容、修改人與時間。
+        {infoMeta.at && <><br />最後更新：{new Date(infoMeta.at).toLocaleString('zh-TW', { hour12: false })}｜{infoMeta.by || '—'}</>}
+      </p>
+      {CONDITION_FIELDS.map(([k, label, ph]) => (
+        <Field key={k} label={label}>
+          <input value={form[k]} onChange={(e) => update(k, e.target.value)} placeholder={ph} />
+        </Field>
+      ))}
+
       {!isPartner && (
         <Field label="狀態">
           <select value={form.status} onChange={(e) => update('status', e.target.value)}>
@@ -373,6 +404,8 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
           </select>
         </Field>
       )}
+
+      {id && <VehicleHistory carId={id} />}
 
       {error && <p className="admin-error">{error}</p>}
 
@@ -397,4 +430,4 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
       </div>
     </>
   );
-                     }
+        }
