@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import PartnerShell, { usePartner } from '../../../../components/partner/PartnerShell';
 import { getSupabase } from '../../../../lib/supabase';
+import ViewingPanel from '../../../../components/case/ViewingPanel';
 import { STATUS_LABEL, statusTone, shortDate } from '../../../../lib/case';
 import {
   PARTNER_ACTIONS, VERIFICATION_LABEL, APPROVAL_LABEL, SETTLEMENT_LABEL, CATEGORY_LABEL,
@@ -33,7 +34,6 @@ function PartnerCase() {
   const [busy, setBusy] = useState(false);
 
   const [action, setAction] = useState('');
-  const [viewAt, setViewAt] = useState('');
   const [note, setNote] = useState('');
   const [saleForm, setSaleForm] = useState(null);
   const [costForm, setCostForm] = useState(null);
@@ -41,7 +41,7 @@ function PartnerCase() {
   async function load() {
     const sb = getSupabase();
     const [cr, ev, sr, tr, st] = await Promise.all([
-      sb.from('cases').select('*, customer:customers(name, phone, line_name)').eq('id', id).maybeSingle(),
+      sb.from('cases').select('*').eq('id', id).maybeSingle(),
       sb.from('case_events').select('*').eq('case_id', id).order('created_at'),
       sb.from('sales').select('*, sale_costs!sale_costs_sale_id_fkey(*)').eq('case_id', id).maybeSingle(),
       sb.from('cost_types').select('*').eq('active', true).order('sort_order'),
@@ -82,16 +82,35 @@ function PartnerCase() {
 
   function sendProgress() {
     if (!action && !note.trim()) return alert('請選擇進度或填寫說明');
-    let text = note.trim();
-    if (action === 'viewing' && viewAt) {
-      const d = new Date(viewAt);
-      text = `安排看車：${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${text ? `\n${text}` : ''}`;
-    }
+    const text = note.trim();
     call('partner_update_case', { p_case: c.id, p_status: action || null, p_note: text || null }, () => {
       setAction('');
-      setViewAt('');
       setNote('');
     });
+  }
+
+  // 接受案件／無法配合：由伺服器確認案件屬於自己才會更新
+  async function respond(kind) {
+    let reason = '';
+    if (kind === 'decline') {
+      reason = prompt('無法配合的原因（選填），例如：車已售出、這週無法帶看');
+      if (reason === null) return;
+    }
+    setBusy(true);
+    try {
+      const { data } = await getSupabase().auth.getSession();
+      const res = await fetch('/api/partner/case', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
+        body: JSON.stringify({ caseId: c.id, action: kind, note: reason }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || '操作失敗');
+    } catch (e) {
+      alert(e.message);
+    }
+    setBusy(false);
+    load();
   }
 
   function reportSale() {
@@ -135,7 +154,10 @@ function PartnerCase() {
   }
 
   const costs = sale ? [...(sale.sale_costs || [])].sort((a, b) => a.created_at.localeCompare(b.created_at)) : [];
-  const cu = c.customer;
+  // 舊案件沒有接案紀錄，視為已接案
+  const pending = c.partner_response === 'pending';
+  const declined = c.partner_response === 'declined';
+  const accepted = !pending && !declined;
 
   return (
     <>
@@ -148,31 +170,48 @@ function PartnerCase() {
         </div>
       </div>
 
-      <div className="case-section">
-        <h3>客戶</h3>
-        <p className="value">
-          {(cu && (cu.name || cu.line_name)) || '—'}
-          {cu && cu.phone && <><br /><a href={`tel:${cu.phone}`}>{cu.phone}</a></>}
-        </p>
-        <h3 style={{ marginTop: 14 }}>客戶需求</h3>
-        <p className="value" style={{ whiteSpace: 'pre-line' }}>{c.customer_request || '—'}</p>
-      </div>
+      {pending && !closed && (
+        <div className="new-case">
+          <h2>🔴 新案件</h2>
+          <dl>
+            <div><dt>案件編號</dt><dd>{c.case_no}</dd></div>
+            <div><dt>車輛</dt><dd>{c.subject || '未指定'}</dd></div>
+            <div><dt>案件來源</dt><dd>VANTA MOTORS</dd></div>
+            <div><dt>客戶需求</dt><dd>{c.customer_request || '—'}</dd></div>
+          </dl>
+          <div className="big-actions">
+            <button className="btn btn-dark" onClick={() => respond('accept')} disabled={busy}>接受案件</button>
+            <button className="btn btn-light" onClick={() => respond('decline')} disabled={busy}>無法配合</button>
+          </div>
+        </div>
+      )}
 
-      {!closed && (
+      {declined && <p className="result-box">你已回覆無法配合這個案件，VANTA 會另外安排。</p>}
+
+      {!pending && (
+        <div className="case-section">
+          <h3>客戶需求</h3>
+          <p className="value" style={{ whiteSpace: 'pre-line' }}>{c.customer_request || '—'}</p>
+          <p className="admin-muted" style={{ marginTop: 8 }}>客戶聯絡由 VANTA 統一處理，有任何問題或需要轉達的事項，請在下方回報。</p>
+        </div>
+      )}
+
+      {accepted && <ViewingPanel caseRow={c} mode="partner" onChange={load} />}
+
+      {accepted && !closed && (
         <div className="case-section">
           <h3>回報進度</h3>
           <div className="quick">
-            {PARTNER_ACTIONS.map(([k, label]) => (
+            {PARTNER_ACTIONS.filter(([k]) => k !== 'viewing').map(([k, label]) => (
               <button key={k} aria-pressed={action === k} onClick={() => setAction(action === k ? '' : k)}>{label}</button>
             ))}
           </div>
-          {action === 'viewing' && <input type="datetime-local" value={viewAt} onChange={(e) => setViewAt(e.target.value)} />}
           <textarea placeholder="補充說明（選填），例如：已回覆里程 4.2 萬、無事故" value={note} onChange={(e) => setNote(e.target.value)} />
           <div className="case-actions"><button className="btn btn-dark" onClick={sendProgress} disabled={busy}>送出進度</button></div>
         </div>
       )}
 
-      <div className="case-section">
+      {accepted && <div className="case-section">
         <h3>成交</h3>
         {sale && sale.partner_status === 'reported' ? (
           <div className="money">
@@ -202,7 +241,7 @@ function PartnerCase() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {sale && sale.partner_status === 'reported' && (
         <div className="case-section">
@@ -286,4 +325,4 @@ function PartnerCase() {
       </div>
     </>
   );
-}
+        }
