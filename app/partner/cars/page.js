@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import PartnerShell from '../../../components/partner/PartnerShell';
+import PartnerShell, { usePartner } from '../../../components/partner/PartnerShell';
 import { getSupabase, photoUrl } from '../../../lib/supabase';
 
 export default function PartnerCarsPage() {
@@ -24,6 +24,7 @@ function stateOf(car) {
 const TABS = [['all', '全部'], ['live', '已上架'], ['review', '審核中'], ['draft', '草稿／退回'], ['off', '已下架']];
 
 function MyCars() {
+  const { profile } = usePartner();
   const [cars, setCars] = useState(null);
   const [error, setError] = useState('');
   const [tab, setTab] = useState('all');
@@ -33,6 +34,8 @@ function MyCars() {
     const { data, error } = await getSupabase()
       .from('cars')
       .select('id, slug, title, year, price, price_max, status, review_status, review_note, updated_at, car_photos(path, sort_order)')
+      // 只列出自己提供的車（網站上公開的其他車源車輛不顯示在這裡）
+      .eq('source_owner_id', profile.partner_id)
       .order('updated_at', { ascending: false })
       .order('sort_order', { referencedTable: 'car_photos' })
       .limit(1, { referencedTable: 'car_photos' });
@@ -59,7 +62,8 @@ function MyCars() {
     const { error } = await getSupabase()
       .from('cars')
       .update({ ...values, updated_at: new Date().toISOString() })
-      .eq('id', car.id);
+      .eq('id', car.id)
+      .eq('source_owner_id', profile.partner_id);
     setBusyId(null);
     if (error) return alert('更新失敗：' + error.message);
     load();
@@ -119,4 +123,4 @@ function MyCars() {
       )}
     </>
   );
-                      }
+}
