@@ -14,7 +14,7 @@ const EMPTY = {
   accident_info: '', flood_info: '', repair_info: '', maintenance_info: '',
 };
 
-// 車況資料（內部紀錄，不顯示在網站）：每次修改都會保留舊值、新值、修改人與時間
+// 車況資料（內部紀錄，不顯示在網站，存在 car_conditions）：每次修改都會保留舊值、新值、修改人與時間
 const CONDITION_FIELDS = [
   ['accident_info', '事故紀錄', '例如：無重大事故／右前葉子板鈑金'],
   ['flood_info', '泡水紀錄', '例如：無泡水紀錄'],
@@ -91,12 +91,23 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
         description: data.description || '',
         status: data.status,
         source_owner_id: data.source_owner_id || '',
-        accident_info: data.accident_info || '',
-        flood_info: data.flood_info || '',
-        repair_info: data.repair_info || '',
-        maintenance_info: data.maintenance_info || '',
+        accident_info: '',
+        flood_info: '',
+        repair_info: '',
+        maintenance_info: '',
       });
-      setInfoMeta({ at: data.info_updated_at, by: data.info_updated_by });
+      // 車況資料放在獨立的資料表，只有 VANTA 與這台車的車源讀得到
+      const { data: cond } = await getSupabase().from('car_conditions').select('*').eq('car_id', id).maybeSingle();
+      if (cond) {
+        setForm((f) => ({
+          ...f,
+          accident_info: cond.accident_info || '',
+          flood_info: cond.flood_info || '',
+          repair_info: cond.repair_info || '',
+          maintenance_info: cond.maintenance_info || '',
+        }));
+        setInfoMeta({ at: cond.updated_at, by: cond.updated_by });
+      }
       setReview({ status: data.review_status, note: data.review_note });
       setUnsure(data.ai_unsure || []);
       setPhotos((data.car_photos || []).map((p) => ({ key: p.id, id: p.id, path: p.path, url: photoUrl(p.path) })));
@@ -186,10 +197,6 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
       price_max: priceMax,
       mileage: num(form.mileage),
       description: String(form.description).trim() || null,
-      accident_info: String(form.accident_info).trim() || null,
-      flood_info: String(form.flood_info).trim() || null,
-      repair_info: String(form.repair_info).trim() || null,
-      maintenance_info: String(form.maintenance_info).trim() || null,
       ai_unsure: unsure,
       updated_at: new Date().toISOString(),
     };
@@ -224,6 +231,13 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
         if (error) throw error;
         carId = data.id;
         carIdRef.current = carId;
+      }
+
+      // 車況資料另外存（不放在公開的車輛資料裡）
+      const cond = Object.fromEntries(CONDITION_FIELDS.map(([k]) => [k, String(form[k]).trim() || null]));
+      if (id || Object.values(cond).some(Boolean)) {
+        const { error } = await supabase.from('car_conditions').upsert({ car_id: carId, ...cond }, { onConflict: 'car_id' });
+        if (error) throw error;
       }
 
       const newOnes = photos.filter((p) => !p.id);
@@ -430,4 +444,4 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
       </div>
     </>
   );
-        }
+      }
