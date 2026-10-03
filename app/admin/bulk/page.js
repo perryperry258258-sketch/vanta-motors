@@ -90,16 +90,25 @@ function Bulk() {
     if (error) throw error;
 
     const rowsToInsert = [];
+    const skipped = [];
     try {
       for (let i = 0; i < photos.length; i++) {
         if (stopRef.current) throw new Error('已暫停，這台車沒有上傳，下次會重新上傳');
         update(r.key, { error: `照片 ${i + 1} / ${photos.length}` });
-        const blob = await compressImage(photos[i]);
+        let blob;
+        try {
+          blob = await compressImage(photos[i]);
+        } catch {
+          // 單張照片讀不到（格式不支援或檔案損壞）就略過，不影響整台車
+          skipped.push(photos[i].name);
+          continue;
+        }
         const path = `${car.id}/${crypto.randomUUID()}.jpg`;
         const { error: upErr } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
         if (upErr) throw upErr;
-        rowsToInsert.push({ car_id: car.id, path, sort_order: i });
+        rowsToInsert.push({ car_id: car.id, path, sort_order: rowsToInsert.length });
       }
+      if (!rowsToInsert.length) throw new Error('這台車的照片都無法讀取');
       const { error: phErr } = await sb.from('car_photos').insert(rowsToInsert);
       if (phErr) throw phErr;
     } catch (e) {
@@ -108,7 +117,7 @@ function Bulk() {
       await sb.from('cars').delete().eq('id', car.id);
       throw e;
     }
-    return car.id;
+    return { id: car.id, skipped };
   }
 
   async function run() {
@@ -123,8 +132,13 @@ function Bulk() {
       setProgress(`第 ${done + 1} / ${selected.length} 台：${r.title}`);
       update(r.key, { state: 'uploading', error: '' });
       try {
-        const id = await uploadOne(r);
-        update(r.key, { state: 'done', error: '', carId: id, include: false });
+        const { id, skipped } = await uploadOne(r);
+        update(r.key, {
+          state: 'done',
+          include: false,
+          carId: id,
+          error: skipped.length ? `完成，略過 ${skipped.length} 張讀不到的照片：${skipped.join('、')}` : '',
+        });
       } catch (e) {
         update(r.key, { state: 'failed', include: true, error: e.message || String(e) });
       }
@@ -258,4 +272,4 @@ function Thumbs({ row, skipFirst, onChange, disabled }) {
       })}
     </div>
   );
-  }
+          }
