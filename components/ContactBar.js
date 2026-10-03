@@ -42,14 +42,15 @@ export default function ContactBar({ carId, title = '', lang = 'zh' }) {
   }, [carId]);
 
   const ref = carRef(carId);
+  // 車輛編號讓 LINE 自動建立這台車的案件；勾選項目可由客戶自行修改
   const askMessage =
     lang === 'en'
-      ? `Hello, I'm interested in this vehicle: ${title} (Ref ${ref})`
-      : `您好，我想詢問這台車：${title}（車輛編號 ${ref}）`;
+      ? `Hello, I'd like to ask about this vehicle:\n${title}\nRef: ${ref}\n\nI'd like to know about:\n□ Condition\n□ Price\n□ Mileage\n□ Booking a viewing\n□ Other`
+      : `您好，我想詢問這台車：\n${title}\n車輛編號：${ref}\n\n想了解：\n□ 車況\n□ 價格\n□ 里程\n□ 預約看車\n□ 其他`;
   const visitMessage =
     lang === 'en'
-      ? `Hello, I'd like to book a visit: ${title} (Ref ${ref})\nPreferred date:\nPreferred time:`
-      : `您好，我想預約看車：${title}（車輛編號 ${ref}）\n希望日期：\n希望時段：`;
+      ? `Hello, I'd like to book a viewing:\n${title}\nRef: ${ref}\nPreferred date:\nPreferred time:`
+      : `您好，我想預約看車：\n${title}\n車輛編號：${ref}\n希望日期：\n希望時段：`;
 
   const onClick = () => {
     trackCar(carId, 'line');
