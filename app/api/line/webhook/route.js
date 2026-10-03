@@ -297,7 +297,7 @@ async function handleSlot(db, event, params) {
   }
   const notice = await viewingNotice(db);
   await reply(event.replyToken, [
-    text(`已為您預約看車 ✅\n\n時間：${r.when}\n車輛：${slot.case.subject || '—'}\n案件編號：${slot.case.case_no}\n\n${notice}`),
+    text(`已為您預約看車 ✅\n\n時間：${r.when}\n車輛：${slot.case.subject || '未指定車輛（請洽 VANTA 客服）'}\n案件編號：${slot.case.case_no}\n\n${notice}`),
   ]);
 }
 
