@@ -18,6 +18,23 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
   const [loading, setLoading] = useState(false);
   const first = useRef(true);
   const requestId = useRef(0);
+  const [quotes, setQuotes] = useState({});
+  const asked = useRef(new Set());
+
+  // 沒有填價格的車：向伺服器要大概的市場行情
+  useEffect(() => {
+    const ids = cars.filter((c) => !c.price && !c.price_max && c.year && !asked.current.has(c.id)).map((c) => c.id);
+    if (!ids.length) return;
+    ids.forEach((id) => asked.current.add(id));
+    fetch('/api/quotes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+      .then((r) => r.json())
+      .then((d) => setQuotes((prev) => ({ ...prev, ...(d.quotes || {}) })))
+      .catch(() => {});
+  }, [cars]);
 
   useEffect(() => {
     if (first.current) {
@@ -82,7 +99,9 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
 
       {cars.length > 0 && (
         <div className="grid">
-          {cars.map((car) => <CarCard key={car.id} car={car} lang={lang} />)}
+          {cars.map((car) => (
+            <CarCard key={car.id} car={car} lang={lang} market={quotes[car.id] && quotes[car.id].market} />
+          ))}
         </div>
       )}
 
