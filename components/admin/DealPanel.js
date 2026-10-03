@@ -12,14 +12,16 @@ const TABLE_LABEL = { sales: '成交', sale_costs: '成本', settlements: '結�
 const FIELD = {
   sale_price: '成交價', sale_date: '成交日期', verification: '成交確認', customer_confirmation: '客戶確認', partner_status: '車源回報',
   amount: '金額', approval: '審核', reject_reason: '拒絕原因', cost_date: '成本日期', description: '說明', cost_type_name: '類型',
-  settlement_status: '結算狀態', settlement_date: '結算日', total_cost: '核准成本', gross_profit: '可分配利潤', vanta_share: 'VANTA 分潤', partner_share: '車源分潤',
+  settlement_status: '結算狀態', settlement_date: '結算日', total_cost: '核准成本', gross_profit: '可分配利潤', vanta_share: 'VANTA 分潤', partner_share: '業務分潤', dealer_share: '車商分潤',
+  override_vanta_ratio: 'VANTA 手動比例', override_dealer_ratio: '車商手動比例',
   response: '客戶回覆', notes: '備註',
 };
 const VALUE = {
   pending: '待處理', approved: '已核准', rejected: '已拒絕', confirmed: '已確認', conflict: '不一致', denied: '尚未成交',
   reported: '已回報', not_reported: '未回報', settled: '已結算', disputed: '爭議中',
 };
-const MONEY = ['sale_price', 'amount', 'total_cost', 'gross_profit', 'vanta_share', 'partner_share'];
+const MONEY = ['sale_price', 'amount', 'total_cost', 'gross_profit', 'vanta_share', 'partner_share', 'dealer_share'];
+const pct = (r) => (r === null || r === undefined ? '' : `${Math.round(Number(r) * 1000) / 10}%`);
 const show = (k, v) => (v === null || v === undefined || v === '' ? '—' : MONEY.includes(k) ? nt(v) : VALUE[v] || String(v));
 
 function auditLine(l) {
@@ -56,6 +58,8 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
   const [copied, setCopied] = useState(false);
   const [stForm, setStForm] = useState(null);
   const [audit, setAudit] = useState([]);
+  const [ratioForm, setRatioForm] = useState(null);
+  const [dealerName, setDealerName] = useState('');
 
   async function load() {
     const sb = getSupabase();
@@ -74,6 +78,12 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
       const { data } = await sb.from('settlements').select('*').eq('sale_id', saleRow.id).maybeSingle();
       st = data || null;
       setSettlement(st);
+      if (st && st.dealer_id) {
+        const { data: d } = await sb.from('dealers').select('name').eq('id', st.dealer_id).maybeSingle();
+        setDealerName((d && d.name) || '');
+      } else {
+        setDealerName('');
+      }
       setStForm(st ? { status: st.settlement_status, date: st.settlement_date || '', notes: st.notes || '' } : null);
     } else {
       setSettlement(null);
@@ -180,6 +190,22 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
     } catch (e) {
       alert('讀取憑證失敗：' + e.message);
     }
+  }
+
+  // 單一案件手動調整三方比例（只能在待結算時調整），清空則恢復合作協議比例
+  function saveRatios() {
+    const dealer = Number(ratioForm.dealer) / 100;
+    const vanta = Number(ratioForm.vanta) / 100;
+    if (!(dealer >= 0 && vanta >= 0 && dealer + vanta <= 1)) return alert('比例不正確：車商與 VANTA 合計不能超過 100%');
+    run(
+      getSupabase().from('settlements').update({ override_dealer_ratio: dealer, override_vanta_ratio: vanta, updated_at: new Date().toISOString() }).eq('id', settlement.id),
+      () => setRatioForm(null)
+    );
+  }
+
+  function clearRatios() {
+    if (!confirm('恢復成合作協議（或預設）的比例？')) return;
+    run(getSupabase().from('settlements').update({ override_dealer_ratio: null, override_vanta_ratio: null, updated_at: new Date().toISOString() }).eq('id', settlement.id));
   }
 
   function saveSettlement() {
@@ -376,11 +402,36 @@ export default function DealPanel({ caseRow, hasCustomerLine = false, onChange }
             <div className="money-row"><span>核准成本合計</span><span>{nt(settlement.total_cost)}</span></div>
             <div className="money-row money-total"><span>可分配利潤</span><span>{nt(settlement.gross_profit)}</span></div>
           </div>
-          <div className="money-split">
-            <div><span>VANTA</span><strong>{nt(settlement.vanta_share)}</strong></div>
-            <div><span>車源</span><strong>{nt(settlement.partner_share)}</strong></div>
+          <div className="money-split money-split-3">
+            <div><span>車商 {pct(settlement.dealer_ratio)}</span><strong>{nt(settlement.dealer_share)}</strong></div>
+            <div><span>車源業務 {pct(settlement.partner_ratio)}</span><strong>{nt(settlement.partner_share)}</strong></div>
+            <div><span>VANTA {pct(settlement.share_ratio)}</span><strong>{nt(settlement.vanta_share)}</strong></div>
           </div>
+          <p className="admin-muted">
+            車商：{dealerName || '⚠️ 這位車源業務尚未設定所屬車商（到「合作協議」設定）'}
+            {settlement.override_vanta_ratio !== null || settlement.override_dealer_ratio !== null ? '｜本案已手動調整比例' : settlement.agreement_id ? '｜依合作協議比例' : '｜依預設比例'}
+          </p>
           {settlement.gross_profit < 0 && <p className="notice">可分配利潤為負數，請確認成交價與成本。</p>}
+          {settlement.settlement_status === 'pending' && (
+            ratioForm ? (
+              <div className="admin-form">
+                <div className="field-grid">
+                  <label className="field"><span>車商（%）</span><input type="number" inputMode="decimal" value={ratioForm.dealer} onChange={(e) => setRatioForm({ ...ratioForm, dealer: e.target.value })} /></label>
+                  <label className="field"><span>VANTA（%）</span><input type="number" inputMode="decimal" value={ratioForm.vanta} onChange={(e) => setRatioForm({ ...ratioForm, vanta: e.target.value })} /></label>
+                </div>
+                <p className="admin-muted">車源業務 = 100% − 車商 − VANTA = {Math.round((100 - Number(ratioForm.dealer || 0) - Number(ratioForm.vanta || 0)) * 10) / 10}%</p>
+                <div className="form-actions">
+                  <button className="btn btn-light" onClick={() => setRatioForm(null)}>取消</button>
+                  <button className="btn btn-dark" onClick={saveRatios}>套用到這個案件</button>
+                </div>
+              </div>
+            ) : (
+              <div className="inline-actions">
+                <button onClick={() => setRatioForm({ dealer: String(Math.round(Number(settlement.dealer_ratio || 0) * 1000) / 10), vanta: String(Math.round(Number(settlement.share_ratio || 0) * 1000) / 10) })}>手動調整這個案件的比例</button>
+                {(settlement.override_vanta_ratio !== null || settlement.override_dealer_ratio !== null) && <button onClick={clearRatios}>恢復協議比例</button>}
+              </div>
+            )
+          )}
           {stForm && (
             <div className="field-grid">
               <label className="field"><span>結算狀態</span>
