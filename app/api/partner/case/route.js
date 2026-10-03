@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 const fail = (error, status = 400) => NextResponse.json({ error }, { status });
 const CLOSED = ['won', 'lost', 'cancelled'];
 
-// 車源操作案件：接受、無法配合、提供看車時間
+// 車源操作案件：接受、無法配合、提供看車時間、回覆車況
 // 一律在伺服器確認「這個案件指派給這位車源」，前端傳來的 partner_id 不採用
 export async function POST(req) {
   const ctx = await requireRole(req, ['partner']);
@@ -62,6 +62,27 @@ export async function POST(req) {
 
       const sent = await sendSlotsToCustomer(db, c.id, 'VANTA 系統');
       return NextResponse.json({ ok: true, sent: sent.sent, reason: sent.reason || null });
+    }
+
+    if (action === 'answer') {
+      const questionId = String((body && body.questionId) || '');
+      const answer = String((body && body.answer) || '').trim().slice(0, 1000);
+      if (!UUID_RE.test(questionId)) return fail('invalid question');
+      if (!answer) return fail('請填寫回覆內容');
+      // 只能回覆自己案件的問題；回覆送出後不可修改，保留原始紀錄
+      const { data: q } = await db
+        .from('partner_questions')
+        .update({ status: 'answered', answer, answered_at: now, answered_by: ctx.user.id, answered_by_label: actor })
+        .eq('id', questionId)
+        .eq('case_id', c.id)
+        .eq('partner_id', profile.partner_id)
+        .eq('status', 'open')
+        .select('question, topic')
+        .maybeSingle();
+      if (!q) return fail('這個問題已經回覆過或已取消');
+      await addCaseEvent(db, c.id, `車源回覆車況：\n問：${q.question}\n答：${answer}`, { visibility: 'partner', actor });
+      await db.from('cases').update({ unread: true }).eq('id', c.id);
+      return NextResponse.json({ ok: true });
     }
 
     return fail('invalid action');
