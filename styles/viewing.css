@@ -1,0 +1,26 @@
+/* 看車安排 */
+.viewing-booked { font-size: 17px; font-weight: 500; margin-bottom: 10px; }
+.viewing-booked.past { color: var(--mute); font-weight: 400; }
+.viewing-slots { list-style: none; padding: 0; margin: 8px 0; }
+.viewing-slots li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.viewing-slots button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; background: var(--white); font-size: 14px; }
+.viewing-form { display: grid; gap: 10px; margin-top: 8px; }
+.viewing-form input { height: 48px; }
+.viewing-history { margin-top: 14px; font-size: 14px; }
+.viewing-history summary { cursor: pointer; color: var(--ink2); }
+.viewing-history textarea { margin-top: 8px; min-height: 120px; }
+
+/* 車源：新案件 */
+.new-case { padding: 18px; border-radius: 16px; background: var(--paper); margin-bottom: 18px; }
+.new-case h2 { font-size: 18px; margin-bottom: 6px; }
+.new-case dl div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 14px; }
+.new-case dt { color: var(--mute); flex: 0 0 auto; }
+.new-case dd { text-align: right; white-space: pre-line; }
+.big-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.big-actions .btn { height: 52px; font-size: 16px; }
+.partner-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+@media (min-width: 700px) { .partner-tiles { grid-template-columns: repeat(5, 1fr); } }
+.partner-tiles button { text-align: left; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--white); }
+.partner-tiles button[aria-pressed="true"] { border-color: var(--black); }
+.partner-tiles span { display: block; font-size: 13px; color: var(--ink2); }
+.partner-tiles strong { font-size: 24px; font-weight: 500; }
