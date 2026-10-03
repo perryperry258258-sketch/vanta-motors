@@ -45,3 +45,6 @@
 /* 車輛卡片價格 */
 .card-price { margin-top: 4px; font-size: 15px; color: var(--black); font-variant-numeric: tabular-nums; }
 .card-price-market { color: var(--ink2); }
+
+/* 車輛頁：合作車源標示 */
+.detail-tag { font-size: 12px; letter-spacing: .12em; color: var(--mute); margin-bottom: 8px; text-transform: uppercase; }
