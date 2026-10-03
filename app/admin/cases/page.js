@@ -7,6 +7,9 @@ import AdminShell from '../../../components/admin/AdminShell';
 import { getSupabase } from '../../../lib/supabase';
 import { CLOSED, STATUS_LABEL, TYPE_LABEL, isStale, statusTone, shortDate } from '../../../lib/case';
 
+// 跟進日期已到（今天或更早）的進行中案件
+const dueFollow = (c) => c.follow_up_at && !CLOSED.includes(c.status) && new Date(c.follow_up_at) <= new Date(new Date().setHours(23, 59, 59, 999));
+
 export default function CasesPage() {
   return (
     <AdminShell>
@@ -19,6 +22,7 @@ export default function CasesPage() {
 
 const TABS = [
   ['unread', '待回覆'],
+  ['followup', '待跟進'],
   ['open', '進行中'],
   ['attention', '需要注意'],
   ['won', '成交'],
@@ -58,6 +62,7 @@ function Cases() {
     const list = cases || [];
     return {
       unread: list.filter((c) => c.unread).length,
+      followup: list.filter(dueFollow).length,
       open: list.filter((c) => !CLOSED.includes(c.status)).length,
       attention: list.filter((c) => isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell')).length,
       won: list.filter((c) => c.status === 'won').length,
@@ -72,6 +77,7 @@ function Cases() {
     return (cases || [])
       .filter((c) => {
         if (tab === 'unread') return c.unread;
+        if (tab === 'followup') return dueFollow(c);
         if (tab === 'open') return !CLOSED.includes(c.status);
         if (tab === 'attention') return isStale(c) || (!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell');
         if (tab === 'won') return c.status === 'won';
@@ -117,7 +123,7 @@ function Cases() {
 
       {tab === 'inquiries' ? (
         <>
-          <p className="admin-muted">客人在車輛頁按了 LINE 詢問。客人在 LINE 送出訊息後會自動建立案件；這裡是還沒傳訊息的詢問。</p>
+          <p className="admin-muted">客人在車輛頁按了 LINE 詢問。等客人在 LINE 傳訊息後，對照車輛編號建立案件。</p>
           {inquiries.length === 0 && <p className="admin-muted">目前沒有待處理的網站詢問。</p>}
           {inquiries.map((i) => (
             <div className="case-card" key={i.id}>
@@ -151,6 +157,8 @@ function Cases() {
               </p>
               <div className="case-flags">
                 {c.unread && <span className="badge badge-new">客戶有新訊息</span>}
+                {dueFollow(c) && <span className="badge badge-warn">今天要跟進{c.follow_up_note ? `：${c.follow_up_note}` : ''}</span>}
+                {c.follow_up_at && !dueFollow(c) && !CLOSED.includes(c.status) && <span className="badge badge-mid">{shortDate(c.follow_up_at).split(' ')[0]} 跟進</span>}
                 {isStale(c) && <span className="badge badge-warn">超過 2 天沒有進度</span>}
                 {!c.partner_id && !CLOSED.includes(c.status) && c.type !== 'sell' && <span className="badge badge-warn">尚未指定車源</span>}
               </div>
@@ -160,4 +168,4 @@ function Cases() {
       )}
     </>
   );
-                    }
+          }
