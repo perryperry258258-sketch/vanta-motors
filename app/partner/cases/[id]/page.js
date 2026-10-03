@@ -22,6 +22,7 @@ export default function PartnerCasePage() {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+const ratio = (r) => (r === null || r === undefined ? '' : ` ${Math.round(Number(r) * 1000) / 10}%`);
 
 function PartnerCase() {
   const { id } = useParams();
@@ -334,9 +335,10 @@ function PartnerCase() {
             <div className="money-row"><span>核准成本</span><span>{nt(settlement.total_cost)}</span></div>
             <div className="money-row money-total"><span>可分配利潤</span><span>{nt(settlement.gross_profit)}</span></div>
           </div>
-          <div className="money-split">
-            <div><span>你的分潤</span><strong>{nt(settlement.partner_share)}</strong></div>
-            <div><span>VANTA</span><strong>{nt(settlement.vanta_share)}</strong></div>
+          <div className="money-split money-split-3">
+            <div><span>你的分潤{ratio(settlement.partner_ratio)}</span><strong>{nt(settlement.partner_share)}</strong></div>
+            <div><span>車商{ratio(settlement.dealer_ratio)}</span><strong>{nt(settlement.dealer_share)}</strong></div>
+            <div><span>VANTA{ratio(settlement.share_ratio)}</span><strong>{nt(settlement.vanta_share)}</strong></div>
           </div>
           <p className="admin-muted" style={{ marginTop: 10 }}>
             狀態：{SETTLEMENT_LABEL[settlement.settlement_status]}
@@ -359,4 +361,4 @@ function PartnerCase() {
       </div>
     </>
   );
-        }
+                }
