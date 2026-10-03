@@ -41,6 +41,7 @@ const TABS = [...TILES, ['waiting', '等待客戶確認時間'], ['booked', '已
 function MyCases() {
   const [cases, setCases] = useState(null);
   const [waiting, setWaiting] = useState(new Set());
+  const [questions, setQuestions] = useState([]);
   const [error, setError] = useState('');
   const [tab, setTab] = useState('new');
 
@@ -52,10 +53,12 @@ function MyCases() {
         .order('last_activity_at', { ascending: false })
         .limit(500),
       sb.from('viewing_slots').select('case_id').eq('status', 'proposed').limit(1000),
-    ]).then(([cr, sr]) => {
+      sb.from('partner_questions').select('id, case_id, topic, question').eq('status', 'open').order('created_at').limit(100),
+    ]).then(([cr, sr, qr]) => {
       if (cr.error) return setError('讀取失敗：' + cr.error.message);
       setCases(cr.data);
       setWaiting(new Set((sr.data || []).map((s) => s.case_id)));
+      setQuestions(qr.data || []);
     });
   }, []);
 
@@ -81,6 +84,12 @@ function MyCases() {
   return (
     <>
       <h1>我的案件</h1>
+      {questions.length > 0 && (
+        <Link href={`/partner/cases/${questions[0].case_id}`} className="question-alert">
+          ⚠️ 有 {questions.length} 個車況問題待回覆<br />
+          <small>{(cases || []).find((c) => c.id === questions[0].case_id)?.case_no || ''}：{questions[0].question.slice(0, 40)} →</small>
+        </Link>
+      )}
       <div className="partner-tiles">
         {TILES.map(([k, label]) => (
           <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>
