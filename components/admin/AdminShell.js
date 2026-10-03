@@ -23,6 +23,7 @@ const NAV = [
   ['/admin/buyback/catalog', '品牌與係數', ['admin']],
   ['/admin/history', '歷史新車價', ['admin']],
   ['/admin/cleanup', '刪除資料', ['admin']],
+  ['/admin/security', '安全測試', ['admin']],
 ];
 
 const RoleContext = createContext({ role: null, profile: null, session: null });
@@ -116,7 +117,6 @@ export function Login({ title = '後台登入' }) {
     setError('');
     const { error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
     if (error) setError('Email 或密碼不正確，請再試一次。');
-    setBusy(true);
     setBusy(false);
   }
 
