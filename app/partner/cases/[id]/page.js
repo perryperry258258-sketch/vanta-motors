@@ -6,6 +6,7 @@ import PartnerShell, { usePartner } from '../../../../components/partner/Partner
 import { getSupabase } from '../../../../lib/supabase';
 import ViewingPanel from '../../../../components/case/ViewingPanel';
 import QuestionsPanel from '../../../../components/case/QuestionsPanel';
+import ResultPanel from '../../../../components/case/ResultPanel';
 import { STATUS_LABEL, statusTone, shortDate } from '../../../../lib/case';
 import {
   PARTNER_ACTIONS, VERIFICATION_LABEL, APPROVAL_LABEL, SETTLEMENT_LABEL, CATEGORY_LABEL,
@@ -114,14 +115,32 @@ function PartnerCase() {
     load();
   }
 
-  function reportSale() {
+  // 回報成交後，自動請客戶在 LINE 確認（雙方都確認才算成交）
+  async function reportSale() {
     const price = Math.round(Number(String(saleForm.price).replace(/,/g, '')));
     if (!price) return alert('請填寫實際成交價格');
-    call(
-      'partner_report_sale',
-      { p_case: c.id, p_price: price, p_date: saleForm.date || today(), p_note: saleForm.note || null },
-      () => setSaleForm(null)
-    );
+    setBusy(true);
+    const sb = getSupabase();
+    const { error } = await sb.rpc('partner_report_sale', { p_case: c.id, p_price: price, p_date: saleForm.date || today(), p_note: saleForm.note || null });
+    if (error) {
+      setBusy(false);
+      return alert(error.message === 'not allowed' ? '沒有權限操作這個案件' : error.message);
+    }
+    setSaleForm(null);
+    try {
+      const { data } = await sb.auth.getSession();
+      const res = await fetch('/api/partner/case', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
+        body: JSON.stringify({ caseId: c.id, action: 'sale_reported' }),
+      });
+      const out = await res.json().catch(() => ({}));
+      alert(out.sent ? '已回報成交，VANTA 已用 LINE 請客戶確認。客戶確認後才會進入結算。' : `已回報成交。${out.reason || out.error || ''}`);
+    } catch (e) {
+      alert('已回報成交，VANTA 會另外請客戶確認。');
+    }
+    setBusy(false);
+    load();
   }
 
   async function addCost() {
@@ -201,6 +220,15 @@ function PartnerCase() {
 
       {accepted && <ViewingPanel caseRow={c} mode="partner" onChange={load} />}
 
+      {accepted && (
+        <ResultPanel
+          caseRow={c}
+          mode="partner"
+          onChange={load}
+          onSold={() => !(sale && sale.partner_status === 'reported') && setSaleForm({ price: '', date: today(), note: '' })}
+        />
+      )}
+
       {accepted && !closed && (
         <div className="case-section">
           <h3>回報進度</h3>
@@ -237,7 +265,7 @@ function PartnerCase() {
             <label className="field"><span>實際成交價格（元，必填）</span><input type="number" inputMode="numeric" placeholder="950000" value={saleForm.price} onChange={(e) => setSaleForm({ ...saleForm, price: e.target.value })} /></label>
             <label className="field"><span>成交日期</span><input type="date" value={saleForm.date} onChange={(e) => setSaleForm({ ...saleForm, date: e.target.value })} /></label>
             <label className="field"><span>備註</span><input value={saleForm.note} onChange={(e) => setSaleForm({ ...saleForm, note: e.target.value })} /></label>
-            <p className="admin-muted">送出後 VANTA 會另外請客戶確認成交，雙方一致後才會進入結算。</p>
+            <p className="admin-muted">送出後 VANTA 會用 LINE 請客戶確認成交，雙方一致後才會進入結算。</p>
             <div className="form-actions">
               <button className="btn btn-light" onClick={() => setSaleForm(null)} disabled={busy}>取消</button>
               <button className="btn btn-dark" onClick={reportSale} disabled={busy}>{busy ? '送出中…' : '確認回報'}</button>
