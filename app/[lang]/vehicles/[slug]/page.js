@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Gallery from '../../../../components/Gallery';
 import ContactBar from '../../../../components/ContactBar';
-import EstimateBreakdown from '../../../../components/EstimateBreakdown';
+import EstimateBreakdown, { ValuationSummary } from '../../../../components/EstimateBreakdown';
 import { getCarBySlug } from '../../../../lib/cars';
 import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
 import { quoteForCar } from '../../../../lib/buyback/quote';
@@ -16,12 +16,12 @@ const LABELS = {
   zh: {
     price: '對客售價',
     market: '市場行情價',
-    marketNote: '市場行情價是依新車價、年份與里程初步推估的大概範圍，僅供參考；實際價格依車況、配備與里程確認。',
+    marketNote: '市場行情價依歷史新車價、年份、里程與目前同款車源初步推估，僅供參考；實際價格依車況、配備與里程確認。',
   },
   en: {
     price: 'Our Price',
     market: 'Market Range',
-    marketNote: 'The market range is a rough estimate based on new-car price, age and mileage, for reference only. Final pricing depends on condition, equipment and mileage.',
+    marketNote: 'The market range is a rough estimate based on historical new-car price, age, mileage and similar listings, for reference only. Final pricing depends on condition, equipment and mileage.',
   },
 };
 
@@ -106,6 +106,7 @@ export default async function VehiclePage({ params }) {
         </dl>
         {market && (
           <>
+            <ValuationSummary lang={lang} v={quote.valuation} />
             <p className="detail-note">{L.marketNote}</p>
             <EstimateBreakdown lang={lang} b={quote.breakdown} />
           </>
