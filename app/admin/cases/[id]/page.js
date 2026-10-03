@@ -203,6 +203,7 @@ function CaseDetail() {
           <span className={`badge badge-${statusTone(c.status)}`}>{STATUS_LABEL[c.status]}</span>
           {isStale(c) && <span className="badge badge-warn">超過 2 天沒有進度</span>}
           {c.unread && <span className="badge badge-new">客戶有新訊息</span>}
+          {c.disputed_at && c.status !== 'won' && <span className="badge badge-warn">⚠️ 成交資料不一致</span>}
           {c.partner_id && c.partner_response && (
             <span className={`badge badge-${c.partner_response === 'accepted' ? 'ok' : c.partner_response === 'declined' ? 'warn' : 'new'}`}>
               {PARTNER_RESPONSE_LABEL[c.partner_response]}
@@ -312,7 +313,7 @@ function CaseDetail() {
         />
       </div>
 
-      {role === 'admin' && <DealPanel caseRow={c} onChange={load} />}
+      {role === 'admin' && <DealPanel caseRow={c} hasCustomerLine={!!(cu && cu.line_user_id)} onChange={load} />}
 
       <div className="case-section">
         <h3>新增紀錄</h3>
@@ -351,4 +352,4 @@ function CaseDetail() {
       )}
     </>
   );
-}
+          }
