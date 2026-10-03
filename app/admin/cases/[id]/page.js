@@ -38,6 +38,7 @@ function CaseDetail() {
   const [note, setNote] = useState('');
   const [shareNote, setShareNote] = useState(false);
   const [request, setRequest] = useState('');
+  const [subject, setSubject] = useState('');
   const [transferMsg, setTransferMsg] = useState('');
   const [copied, setCopied] = useState(false);
   const [lineMsg, setLineMsg] = useState('');
@@ -56,6 +57,7 @@ function CaseDetail() {
     if (cr.error || !cr.data) return setError('找不到這個案件');
     setC(cr.data);
     setRequest(cr.data.customer_request || '');
+    setSubject(cr.data.subject || '');
     setEvents(ev.data || []);
     setPartners(pr.data || []);
     if (role === 'admin') {
@@ -136,10 +138,11 @@ function CaseDetail() {
 
   function transfer() {
     if (!c.partner_id) return alert('請先指定車源負責人');
-    const msg = buildTransferMessage({ ...c, customer_request: request || c.customer_request }, window.location.origin);
+    const base = { ...c, customer_request: request || c.customer_request };
 
-    // 車源已綁定 LINE：直接由官方帳號通知
+    // 車源已綁定 LINE：直接由官方帳號通知（系統會自動附上案件連結）
     if (c.partner && c.partner.line_user_id) {
+      const msg = buildTransferMessage(base);
       setTransferMsg(msg);
       setLineBusy(true);
       (async () => {
@@ -158,6 +161,7 @@ function CaseDetail() {
     }
 
     // 必須在按下的當下就複製和開啟 LINE，手機瀏覽器才不會擋
+    const msg = buildTransferMessage(base, window.location.origin);
     copyTransfer(msg);
     const url = partnerLineUrl(c.partner);
     if (url) window.open(url, '_blank');
@@ -242,9 +246,16 @@ function CaseDetail() {
 
       <div className="case-section">
         <h3>車輛與車源</h3>
-        <p className="value">
-          {c.car ? `${c.car.title}（編號 ${carRef(c.car.id)}）` : c.subject || '未指定車輛'}
-        </p>
+        {c.car ? (
+          <p className="value">{`${c.car.title}（編號 ${carRef(c.car.id)}）`}</p>
+        ) : (
+          <input
+            placeholder="車輛名稱，例如：2023 Toyota Vios"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            onBlur={() => subject.trim() !== (c.subject || '') && update({ subject: subject.trim() || null })}
+          />
+        )}
         {c.car && c.car.status === 'published' && (
           <div className="inline-actions">
             <a href={`/zh/vehicles/${c.car.slug}`} target="_blank" rel="noopener noreferrer">查看車輛頁</a>
@@ -324,4 +335,4 @@ function CaseDetail() {
       )}
     </>
   );
-              }
+                                                           }
