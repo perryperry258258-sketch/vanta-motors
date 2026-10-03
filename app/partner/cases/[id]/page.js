@@ -152,10 +152,11 @@ function PartnerCase() {
       for (const file of costForm.files) {
         paths.push(await uploadDealDoc(file, profile.partner_id, sale.id));
       }
-      const { error } = await getSupabase().rpc('partner_add_cost', {
+      const { error } = await getSupabase().rpc('partner_add_cost_dated', {
         p_sale: sale.id,
         p_type: costForm.typeId,
         p_amount: amount,
+        p_date: costForm.date || today(),
         p_desc: costForm.desc || null,
         p_receipts: paths,
       });
@@ -291,12 +292,13 @@ function PartnerCase() {
                 {cost.description ? `・${cost.description}` : ''}
                 {cost.reject_reason ? `・拒絕原因：${cost.reject_reason}` : ''}
               </p>
+              <p className="admin-muted">成本日期 {cost.cost_date || '—'}｜提交 {new Date(cost.created_at).toLocaleString('zh-TW', { hour12: false })}</p>
               {!locked && <div className="inline-actions"><button className="danger" onClick={() => deleteCost(cost)}>刪除</button></div>}
             </div>
           ))}
           {!locked && !costForm && (
             <div className="case-actions">
-              <button className="btn btn-light" onClick={() => setCostForm({ typeId: '', amount: '', desc: '', files: [] })}>＋ 上傳成本</button>
+              <button className="btn btn-light" onClick={() => setCostForm({ typeId: '', amount: '', desc: '', date: today(), files: [] })}>＋ 上傳成本</button>
             </div>
           )}
           {costForm && (
@@ -308,6 +310,7 @@ function PartnerCase() {
                 </select>
               </label>
               <label className="field"><span>金額（元）</span><input type="number" inputMode="numeric" value={costForm.amount} onChange={(e) => setCostForm({ ...costForm, amount: e.target.value })} /></label>
+              <label className="field"><span>成本日期</span><input type="date" value={costForm.date} onChange={(e) => setCostForm({ ...costForm, date: e.target.value })} /></label>
               <label className="field"><span>說明（選填）</span><input placeholder="例如：前保桿烤漆" value={costForm.desc} onChange={(e) => setCostForm({ ...costForm, desc: e.target.value })} /></label>
               <label className="photo-add">
                 {costForm.files.length ? `已選 ${costForm.files.length} 個憑證，點此重選` : '＋ 憑證照片或 PDF（發票、收據、維修單）'}
