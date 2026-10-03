@@ -16,6 +16,7 @@ const NAV = [
   ['/admin/customers', '客戶', ['admin', 'staff']],
   ['/admin', '車輛管理', ['admin', 'staff']],
   ['/admin/bulk', '批次上架', ['admin']],
+  ['/admin/duplicates', '重複車輛', ['admin']],
   ['/admin/market-gaps', '行情缺漏', ['admin', 'staff']],
   ['/admin/buyback/leads', '收車線索', ['admin', 'staff']],
   ['/admin/partners', '車源與帳號', ['admin']],
