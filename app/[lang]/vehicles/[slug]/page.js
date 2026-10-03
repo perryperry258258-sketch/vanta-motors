@@ -14,11 +14,17 @@ export const dynamic = 'force-dynamic';
 
 const LABELS = {
   zh: {
+    partnerTag: 'VANTA 合作車源',
+    selectedTag: 'VANTA MOTORS 精選車輛',
+    partnerNote: '這台車為 VANTA MOTORS 合作車源，由 VANTA 協助媒合、看車安排及資訊確認。車輛實際狀況、最終價格、交易條件及交車相關事項，由實際車輛提供者與您確認，並以實車檢視、相關紀錄及正式交易文件為準。',
     price: '對客售價',
     market: '市場行情價',
     marketNote: '市場行情價依歷史新車價、年份、里程與目前同款車源初步推估，僅供參考；實際價格依車況、配備與里程確認。',
   },
   en: {
+    partnerTag: 'Selected Partner Vehicle',
+    selectedTag: 'VANTA MOTORS Selected Vehicle',
+    partnerNote: 'This is a VANTA MOTORS partner vehicle. VANTA assists with matching, viewing arrangements and information checks. The actual condition, final price, transaction terms and delivery are confirmed with you by the vehicle provider, subject to inspection, records and the formal transaction documents.',
     price: 'Our Price',
     market: 'Market Range',
     marketNote: 'The market range is a rough estimate based on historical new-car price, age, mileage and similar listings, for reference only. Final pricing depends on condition, equipment and mileage.',
@@ -95,6 +101,7 @@ export default async function VehiclePage({ params }) {
       )}
 
       <div className="detail-body">
+        <p className="detail-tag">{car.source_owner_id ? L.partnerTag : L.selectedTag}</p>
         <h1>{title}</h1>
         <dl className="specs">
           {rows.map(([k, v]) => (
@@ -112,6 +119,7 @@ export default async function VehiclePage({ params }) {
           </>
         )}
         {showText(car.description) && <p className="detail-desc">{car.description}</p>}
+        {car.source_owner_id && <p className="detail-note">{L.partnerNote}</p>}
         <p className="detail-note">{t.car.note}</p>
         <Link href={`/${lang}/vehicles`} className="back-link">{t.car.back}</Link>
       </div>
@@ -119,4 +127,4 @@ export default async function VehiclePage({ params }) {
       <ContactBar carId={car.id} title={title} lang={lang} />
     </main>
   );
-}
+                  }
