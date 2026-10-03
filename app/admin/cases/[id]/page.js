@@ -5,10 +5,11 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminShell, { useRole } from '../../../../components/admin/AdminShell';
 import DealPanel from '../../../../components/admin/DealPanel';
+import ViewingPanel from '../../../../components/case/ViewingPanel';
 import { getSupabase } from '../../../../lib/supabase';
 import {
   CASE_STATUS, STATUS_LABEL, TYPE_LABEL, SOURCE_LABEL, CLOSED,
-  statusTone, shortDate, carRef, buildTransferMessage, isStale,
+  statusTone, shortDate, carRef, buildTransferMessage, isStale, PARTNER_RESPONSE_LABEL,
 } from '../../../../lib/case';
 
 export default function CaseDetailPage() {
@@ -135,7 +136,7 @@ function CaseDetail() {
 
   function transfer() {
     if (!c.partner_id) return alert('請先指定車源負責人');
-    const msg = buildTransferMessage({ ...c, customer_request: request || c.customer_request });
+    const msg = buildTransferMessage({ ...c, customer_request: request || c.customer_request }, window.location.origin);
 
     // 車源已綁定 LINE：直接由官方帳號通知
     if (c.partner && c.partner.line_user_id) {
@@ -196,6 +197,11 @@ function CaseDetail() {
           <span className={`badge badge-${statusTone(c.status)}`}>{STATUS_LABEL[c.status]}</span>
           {isStale(c) && <span className="badge badge-warn">超過 2 天沒有進度</span>}
           {c.unread && <span className="badge badge-new">客戶有新訊息</span>}
+          {c.partner_id && c.partner_response && (
+            <span className={`badge badge-${c.partner_response === 'accepted' ? 'ok' : c.partner_response === 'declined' ? 'warn' : 'new'}`}>
+              {PARTNER_RESPONSE_LABEL[c.partner_response]}
+            </span>
+          )}
         </div>
         {c.unread && (
           <div className="inline-actions">
@@ -268,6 +274,8 @@ function CaseDetail() {
         )}
       </div>
 
+      {c.type !== 'sell' && c.partner_id && <ViewingPanel caseRow={c} mode="staff" isAdmin={role === 'admin'} onChange={load} />}
+
       <div className="case-section">
         <h3>客戶需求</h3>
         <textarea
@@ -316,4 +324,4 @@ function CaseDetail() {
       )}
     </>
   );
-          }
+              }
