@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
 import { verifySignature, reply, getProfile, text } from '../../../../lib/line';
+import { chooseSlot, fmtSlot, viewingNotice, addCaseEvent } from '../../../../lib/viewing';
 
 export const dynamic = 'force-dynamic';
 
@@ -258,8 +259,51 @@ async function appendOrCreate(db, customer, body) {
   await markUnread(db, c.id);
 }
 
+// 客戶在 LINE 選看車時間：確認按的人就是這個案件的客戶
+async function handleSlot(db, event, params) {
+  const userId = event.source.userId;
+  const slotId = params.get('slot');
+  const noneCase = params.get('slot_none');
+
+  if (noneCase) {
+    const { data: c } = await db.from('cases').select('id, customer:customers(line_user_id)').eq('id', noneCase).maybeSingle();
+    if (!c || !c.customer || c.customer.line_user_id !== userId) return;
+    await db.from('viewing_slots').update({ status: 'expired' }).eq('case_id', c.id).eq('status', 'proposed');
+    await addCaseEvent(db, c.id, '客戶表示提供的看車時間都不方便，請車源重新提供時間', { visibility: 'partner', actor: '客戶（LINE）' });
+    await db.from('cases').update({ unread: true, last_customer_msg_at: new Date().toISOString() }).eq('id', c.id);
+    await reply(event.replyToken, [text('收到，我會再請車輛負責人提供其他時間，也歡迎直接告訴我您方便的時段。')]);
+    return;
+  }
+
+  const { data: slot } = await db
+    .from('viewing_slots')
+    .select('id, status, slot_at, case:cases(id, case_no, subject, customer:customers(line_user_id))')
+    .eq('id', slotId)
+    .maybeSingle();
+  if (!slot || !slot.case || !slot.case.customer || slot.case.customer.line_user_id !== userId) return;
+
+  if (slot.status === 'chosen') {
+    await reply(event.replyToken, [text(`這個時間已經為您預約好了：${fmtSlot(slot.slot_at)}`)]);
+    return;
+  }
+  if (slot.status !== 'proposed') {
+    await reply(event.replyToken, [text('這個時間已經失效，我會再幫您確認新的看車時間。')]);
+    return;
+  }
+  const r = await chooseSlot(db, slot.id, { via: 'line', actor: '客戶（LINE）' });
+  if (!r) {
+    await reply(event.replyToken, [text('這個時間剛剛已經更新，我會再幫您確認。')]);
+    return;
+  }
+  const notice = await viewingNotice(db);
+  await reply(event.replyToken, [
+    text(`已為您預約看車 ✅\n\n時間：${r.when}\n車輛：${slot.case.subject || '—'}\n案件編號：${slot.case.case_no}\n\n${notice}`),
+  ]);
+}
+
 async function handlePostback(db, event) {
   const params = new URLSearchParams((event.postback && event.postback.data) || '');
+  if (params.get('slot') || params.get('slot_none')) return handleSlot(db, event, params);
   const token = params.get('confirm');
   const response = params.get('r');
   if (!token || !['confirmed', 'denied'].includes(response)) return;
