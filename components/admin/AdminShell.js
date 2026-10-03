@@ -17,6 +17,7 @@ const NAV = [
   ['/admin', '車輛管理', ['admin', 'staff']],
   ['/admin/buyback/leads', '收車線索', ['admin', 'staff']],
   ['/admin/partners', '車源與帳號', ['admin']],
+  ['/admin/agreements', '合作協議', ['admin']],
   ['/admin/buyback', '收車總覽', ['admin']],
   ['/admin/buyback/pricing', '行情規則', ['admin']],
   ['/admin/buyback/catalog', '品牌與係數', ['admin']],
@@ -115,6 +116,7 @@ export function Login({ title = '後台登入' }) {
     setError('');
     const { error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
     if (error) setError('Email 或密碼不正確，請再試一次。');
+    setBusy(true);
     setBusy(false);
   }
 
