@@ -32,3 +32,7 @@
 .question-a { padding: 12px 14px; border-radius: 12px; background: var(--paper); white-space: pre-line; line-height: 1.7; }
 .question-done { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.7; }
 .question-alert { display: block; padding: 14px 16px; border-radius: 14px; background: var(--black); color: var(--white); margin-bottom: 14px; }
+
+/* 三方分潤 */
+.money-split.money-split-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.money-split.money-split-3 strong { font-size: 16px; }
