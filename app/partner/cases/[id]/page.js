@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import PartnerShell, { usePartner } from '../../../../components/partner/PartnerShell';
 import { getSupabase } from '../../../../lib/supabase';
 import ViewingPanel from '../../../../components/case/ViewingPanel';
+import QuestionsPanel from '../../../../components/case/QuestionsPanel';
 import { STATUS_LABEL, statusTone, shortDate } from '../../../../lib/case';
 import {
   PARTNER_ACTIONS, VERIFICATION_LABEL, APPROVAL_LABEL, SETTLEMENT_LABEL, CATEGORY_LABEL,
@@ -195,6 +196,8 @@ function PartnerCase() {
           <p className="admin-muted" style={{ marginTop: 8 }}>客戶聯絡由 VANTA 統一處理，有任何問題或需要轉達的事項，請在下方回報。</p>
         </div>
       )}
+
+      {accepted && <QuestionsPanel caseRow={c} mode="partner" onChange={load} />}
 
       {accepted && <ViewingPanel caseRow={c} mode="partner" onChange={load} />}
 
