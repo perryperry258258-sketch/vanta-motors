@@ -18,13 +18,19 @@ export default function PartnerHome() {
 
 const taipeiDay = (v) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date(v));
 
+const FOLLOW = ['undecided', 'interested', 'considering', 'quoted'];
+
 // 每個案件只歸到一個分類，依優先順序判斷
 function bucketOf(c, waiting) {
   if (['lost', 'cancelled'].includes(c.status) || c.partner_response === 'declined') return 'closed';
   if (c.status === 'won') return 'settle';
   if (c.partner_response === 'pending') return 'new';
-  if (c.viewing_at && taipeiDay(c.viewing_at) === taipeiDay(Date.now())) return 'today';
-  if ((c.status === 'viewing' && c.viewing_at && new Date(c.viewing_at) < new Date()) || c.status === 'quoted') return 'report';
+  // 這次看車之後已經回報過結果
+  const reported = c.viewing_reported_at && (!c.viewing_at || new Date(c.viewing_reported_at) >= new Date(c.viewing_at));
+  if (reported && c.last_viewing_result === 'sold') return 'settle';
+  if (reported && FOLLOW.includes(c.last_viewing_result)) return 'followup';
+  if (!reported && c.viewing_at && taipeiDay(c.viewing_at) === taipeiDay(Date.now())) return 'today';
+  if (!reported && c.viewing_at && new Date(c.viewing_at) < new Date()) return 'report';
   if (c.viewing_at && new Date(c.viewing_at) > new Date()) return 'booked';
   return waiting.has(c.id) ? 'waiting' : 'schedule';
 }
@@ -36,7 +42,7 @@ const TILES = [
   ['report', '⚠️ 待回報'],
   ['settle', '💰 待結算'],
 ];
-const TABS = [...TILES, ['waiting', '等待客戶確認時間'], ['booked', '已預約看車'], ['closed', '已結束']];
+const TABS = [...TILES, ['waiting', '等待客戶確認時間'], ['booked', '已預約看車'], ['followup', '看車後追蹤'], ['closed', '已結束']];
 
 function MyCases() {
   const [cases, setCases] = useState(null);
@@ -49,7 +55,7 @@ function MyCases() {
     const sb = getSupabase();
     Promise.all([
       sb.from('cases')
-        .select('id, case_no, subject, status, partner_response, viewing_at, customer_request, last_activity_at')
+        .select('id, case_no, subject, status, partner_response, viewing_at, viewing_reported_at, last_viewing_result, customer_request, last_activity_at')
         .order('last_activity_at', { ascending: false })
         .limit(500),
       sb.from('viewing_slots').select('case_id').eq('status', 'proposed').limit(1000),
@@ -123,7 +129,7 @@ function MyCases() {
           {c.customer_request && tab === 'new' && <p className="lead-meta" style={{ whiteSpace: 'pre-line' }}>{c.customer_request.slice(0, 80)}</p>}
           <div className="inline-actions">
             <span>
-              {{ new: '接受案件', schedule: '安排看車', waiting: '查看', today: '查看看車', booked: '查看', report: '回報結果', settle: '查看結算', closed: '查看' }[tab]} →
+              {{ new: '接受案件', schedule: '安排看車', waiting: '查看', today: '查看看車', booked: '查看', report: '回報看車結果', followup: '更新結果', settle: '查看成交與結算', closed: '查看' }[tab]} →
             </span>
           </div>
         </Link>
