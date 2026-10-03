@@ -3,23 +3,60 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import CarCard from './CarCard';
-import { searchCars } from '../lib/cars';
+import { searchCars, carFilters } from '../lib/cars';
 import { site } from '../lib/site';
 import { dict } from '../lib/i18n';
+import '../styles/find.css';
+
+const EXTRA = {
+  zh: {
+    all: '全部',
+    sortLabel: '排序',
+    sorts: [['new', '最新上架'], ['year_desc', '年份：新到舊'], ['year_asc', '年份：舊到新'], ['km_asc', '里程：少到多']],
+    kmLabel: '里程',
+    kms: [['', '不限里程'], ['30000', '3 萬公里內'], ['50000', '5 萬公里內'], ['100000', '10 萬公里內'], ['150000', '15 萬公里內']],
+    total: (n) => `共 ${n} 台`,
+    clear: '清除篩選',
+  },
+  en: {
+    all: 'All',
+    sortLabel: 'Sort',
+    sorts: [['new', 'Newest listings'], ['year_desc', 'Year: newest first'], ['year_asc', 'Year: oldest first'], ['km_asc', 'Mileage: lowest first']],
+    kmLabel: 'Mileage',
+    kms: [['', 'Any mileage'], ['30000', 'Under 30,000 km'], ['50000', 'Under 50,000 km'], ['100000', 'Under 100,000 km'], ['150000', 'Under 150,000 km']],
+    total: (n) => `${n} vehicles`,
+    clear: 'Clear filters',
+  },
+};
 
 export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
   const t = dict[lang].vehicles;
+  const X = EXTRA[lang] || EXTRA.zh;
   const [q, setQ] = useState('');
   const [brand, setBrand] = useState('');
   const [year, setYear] = useState('');
+  const [sort, setSort] = useState('new');
+  const [km, setKm] = useState('');
   const [cars, setCars] = useState(initial.cars);
   const [hasMore, setHasMore] = useState(initial.hasMore);
+  const [total, setTotal] = useState(initial.total ?? null);
+  const [counts, setCounts] = useState({ brands: {}, total: null });
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const first = useRef(true);
   const requestId = useRef(0);
   const [quotes, setQuotes] = useState({});
   const asked = useRef(new Set());
+
+  // 品牌分類的台數
+  useEffect(() => {
+    carFilters()
+      .then((f) => {
+        setCounts({ brands: f.brandCounts || {}, total: f.total });
+        if (total === null) setTotal(f.total);
+      })
+      .catch(() => {});
+  }, []);
 
   // 沒有填價格的車：向伺服器要大概的市場行情
   useEffect(() => {
@@ -45,10 +82,11 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await searchCars({ q, brand, year, page: 0 });
+        const res = await searchCars({ q, brand, year, sort, km, page: 0 });
         if (id === requestId.current) {
           setCars(res.cars);
           setHasMore(res.hasMore);
+          setTotal(res.total);
           setPage(0);
         }
       } catch (e) {
@@ -58,13 +96,13 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [q, brand, year]);
+  }, [q, brand, year, sort, km]);
 
   async function loadMore() {
     const id = ++requestId.current;
     setLoading(true);
     try {
-      const res = await searchCars({ q, brand, year, page: page + 1 });
+      const res = await searchCars({ q, brand, year, sort, km, page: page + 1 });
       if (id === requestId.current) {
         setCars((prev) => [...prev, ...res.cars]);
         setHasMore(res.hasMore);
@@ -77,9 +115,30 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
     }
   }
 
+  const filtered = q || brand || year || km || sort !== 'new';
+  function clearAll() {
+    setQ('');
+    setBrand('');
+    setYear('');
+    setKm('');
+    setSort('new');
+  }
+
   return (
     <>
-      <div className="search">
+      {/* 品牌分類：可左右滑動 */}
+      <div className="brand-chips" role="tablist" aria-label={t.brandLabel}>
+        <button aria-pressed={!brand} onClick={() => setBrand('')}>
+          {X.all}{counts.total ? <small>{counts.total}</small> : null}
+        </button>
+        {brands.map((b) => (
+          <button key={b} aria-pressed={brand === b} onClick={() => setBrand(brand === b ? '' : b)}>
+            {b}{counts.brands[b] ? <small>{counts.brands[b]}</small> : null}
+          </button>
+        ))}
+      </div>
+
+      <div className="search search-grid">
         <input
           type="search"
           placeholder={t.searchPlaceholder}
@@ -87,14 +146,21 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
           onChange={(e) => setQ(e.target.value)}
           aria-label={t.searchLabel}
         />
-        <select value={brand} onChange={(e) => setBrand(e.target.value)} aria-label={t.brandLabel}>
-          <option value="">{t.allBrands}</option>
-          {brands.map((b) => <option key={b} value={b}>{b}</option>)}
-        </select>
         <select value={year} onChange={(e) => setYear(e.target.value)} aria-label={t.yearLabel}>
           <option value="">{t.allYears}</option>
           {years.map((y) => <option key={y} value={String(y)}>{y}</option>)}
         </select>
+        <select value={km} onChange={(e) => setKm(e.target.value)} aria-label={X.kmLabel}>
+          {X.kms.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label={X.sortLabel}>
+          {X.sorts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </div>
+
+      <div className="search-meta">
+        <span>{total !== null ? X.total(total) : ''}</span>
+        {filtered && <button className="text-link" onClick={clearAll}>{X.clear}</button>}
       </div>
 
       {cars.length > 0 && (
@@ -136,4 +202,4 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       )}
     </>
   );
-}
+            }
