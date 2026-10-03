@@ -77,7 +77,9 @@ function Bulk() {
         year: r.year ? Number(r.year) : null,
         color: r.color || null,
         mileage: r.mileage ? Number(r.mileage) : null,
-        price: r.price ? Number(r.price) : null,
+        // 不放價格：網站一律顯示系統算出的市場行情
+        price: null,
+        price_max: null,
         status: publish ? 'published' : 'draft',
         source_owner_id: ownerId || null,
         slug: makeSlug(r.titleEn.trim() || title),
@@ -139,7 +141,7 @@ function Bulk() {
       <h1>批次上架</h1>
       <p className="admin-muted">
         請用<strong>電腦的 Chrome 或 Edge</strong> 開這一頁（手機無法選資料夾）。選擇整個「VANTA 車源」資料夾，系統會依「品牌資料夾／車輛資料夾／照片」自動整理每台車，
-        從資料夾名稱讀出年份、車型、顏色、里程，從照片檔名讀出「開價」。上傳前可以逐台檢查、修改。
+        從資料夾名稱讀出年份、車型、顏色、里程。<strong>不會上傳價格</strong>，網站一律顯示系統算出的市場行情。上傳前可以逐台檢查、修改。
       </p>
 
       <label className="photo-add">
@@ -205,7 +207,6 @@ function Bulk() {
                 <label className="field"><span>年份</span><input inputMode="numeric" {...setField(r, 'year')} /></label>
                 <label className="field"><span>顏色</span><input {...setField(r, 'color')} /></label>
                 <label className="field"><span>里程（公里）</span><input inputMode="numeric" {...setField(r, 'mileage')} /></label>
-                <label className="field"><span>價格（萬）</span><input inputMode="decimal" {...setField(r, 'price')} /></label>
               </div>
               {r.notes.length > 0 && <p className="admin-error">{r.notes.join('；')}</p>}
               {r.error && <p className={r.state === 'failed' ? 'admin-error' : 'admin-muted'}>{r.error}</p>}
@@ -257,4 +258,4 @@ function Thumbs({ row, skipFirst, onChange, disabled }) {
       })}
     </div>
   );
-                }
+  }
