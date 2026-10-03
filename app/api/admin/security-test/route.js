@@ -36,6 +36,8 @@ export async function POST(req) {
     return res.status;
   };
   const blocked = (r) => !!r.error || !r.data || (Array.isArray(r.data) && r.data.length === 0);
+  // 401（未登入）與 403（沒有權限）都代表伺服器拒絕
+  const refused = (s) => s === 401 || s === 403;
 
   try {
     // ===== 建立測試資料 =====
@@ -153,14 +155,13 @@ export async function POST(req) {
     record(8, '客服查看成交價、利潤、分潤比例', blocked(r) && blocked(r8b) && blocked(r8c));
 
     // ===== 9. 未登入直接呼叫 =====
+    const anonTables = ['cases', 'customers', 'sale_costs', 'settlements', 'car_conditions'];
     const anonChecks = await Promise.all([
-      anon.from('cases').select('id').limit(1),
-      anon.from('customers').select('id').limit(1),
-      anon.from('sale_costs').select('id').limit(1),
-      anon.from('settlements').select('id').limit(1),
-      anon.from('car_conditions').select('car_id').limit(1),
+      ...anonTables.map((t) => anon.from(t).select('*').limit(1)),
       anon.from('cars').select('id').eq('id', carB.id),
     ]);
+    const leakedTables = [...anonTables, '未上架車輛'].filter((_, i) => !blocked(anonChecks[i]));
+    const apiNames = ['partner/case', 'admin/questions', 'admin/viewing', 'admin/followup', 'admin/line', 'admin/security-test'];
     const apiStatuses = await Promise.all([
       callApi('/api/partner/case', null, { caseId: caseB.id, action: 'accept' }),
       callApi('/api/admin/questions', null, { action: 'create', caseId: caseB.id }),
@@ -169,7 +170,13 @@ export async function POST(req) {
       callApi('/api/admin/line', null, { action: 'send_confirmation', caseId: caseB.id }),
       callApi('/api/admin/security-test', null, {}),
     ]);
-    record(9, '未登入直接讀資料庫、呼叫後台 API', anonChecks.every(blocked) && apiStatuses.every((s) => s === 401), `API 回應 ${apiStatuses.join('、')}`);
+    const openApis = apiNames.filter((_, i) => !refused(apiStatuses[i]));
+    record(
+      9,
+      '未登入直接讀資料庫、呼叫後台 API',
+      leakedTables.length === 0 && openApis.length === 0,
+      `資料庫：${leakedTables.length ? `讀得到 ${leakedTables.join('、')}` : '6 項全部擋下'}｜API：${openApis.length ? `未擋下 ${openApis.join('、')}` : `全部擋下（${apiStatuses.join('、')}）`}`
+    );
 
     // ===== 10. 客戶查看其他案件 =====
     const confirmPage = await fetch(`${origin}/confirm/${crypto.randomUUID()}`);
