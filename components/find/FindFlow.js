@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import { site } from '../../lib/site';
 import { findDict } from '../../lib/i18n-find';
 import { formatDate } from '../../lib/buyback/format';
-import EstimateBreakdown from '../EstimateBreakdown';
+import EstimateBreakdown, { ValuationSummary } from '../EstimateBreakdown';
+import VersionSelect from '../VersionSelect';
 import {
   MILEAGE_OPTIONS, BUDGET_OPTIONS, FUEL_OPTIONS, BODY_OPTIONS, TIER_LABEL,
   parseBudget, budgetText, buildFindMessage,
@@ -19,6 +20,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
   const [brandId, setBrandId] = useState('');
   const [modelId, setModelId] = useState('');
   const [year, setYear] = useState('');
+  const [version, setVersion] = useState('');
   const [mileage, setMileage] = useState('');
   const [budget, setBudget] = useState('');
   const [showMore, setShowMore] = useState(false);
@@ -28,6 +30,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
   const [result, setResult] = useState(null);
 
   const brand = brands.find((b) => b.id === brandId);
+  const modelName = brand && (brand.models.find((m) => m.id === modelId) || {}).name;
   const years = useMemo(() => {
     const list = [];
     for (let y = maxYear; y >= minYear; y--) list.push(y);
@@ -58,6 +61,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
         body: JSON.stringify({
           modelId,
           year: year ? Number(year) : null,
+          version: year ? version : '',
           mileageMax: mileage ? Number(mileage) : null,
           budgetMin: min,
           budgetMax: max,
@@ -86,7 +90,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
     return (
       <div className="estimate">
         <p className="estimate-car-label">{t.yourRequest}</p>
-        <h2 className="estimate-car">{`${result.year ? `${result.year} ` : ''}${result.brand} ${result.model}`}</h2>
+        <h2 className="estimate-car">{`${result.year ? `${result.year} ` : ''}${result.brand} ${result.model}${result.version ? ` ${result.version}` : ''}`}</h2>
         <p className="estimate-km">
           {t.mileageLabel} {kmText}｜{t.budgetLabel} {budgetText(lang, result.budgetMin, result.budgetMax)}
         </p>
@@ -104,6 +108,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
                 {t.confidence}{t.confidenceLabel[result.confidence] || t.confidenceLabel.low}
                 {result.updatedAt ? `｜${t.updated}${formatDate(lang, result.updatedAt)}` : ''}
               </p>
+              <ValuationSummary lang={lang} v={result.valuation} />
               <EstimateBreakdown
                 lang={lang}
                 b={result.breakdown}
@@ -158,7 +163,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
     <form className="sell-form" onSubmit={submit}>
       <label className="sell-step">
         <span className="sell-step-label"><small>Step 1</small>{t.brand}</span>
-        <select value={brandId} onChange={(e) => { setBrandId(e.target.value); setModelId(''); }}>
+        <select value={brandId} onChange={(e) => { setBrandId(e.target.value); setModelId(''); setVersion(''); }}>
           <option value="">{t.selectBrand}</option>
           {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
@@ -166,7 +171,7 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
 
       <label className="sell-step">
         <span className="sell-step-label"><small>Step 2</small>{t.model}</span>
-        <select value={modelId} onChange={(e) => setModelId(e.target.value)} disabled={!brand}>
+        <select value={modelId} onChange={(e) => { setModelId(e.target.value); setVersion(''); }} disabled={!brand}>
           <option value="">{brand ? t.selectModel : t.selectBrandFirst}</option>
           {brand && brand.models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
@@ -174,11 +179,13 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
 
       <label className="sell-step">
         <span className="sell-step-label"><small>Step 3</small>{t.year}</span>
-        <select value={year} onChange={(e) => setYear(e.target.value)}>
+        <select value={year} onChange={(e) => { setYear(e.target.value); setVersion(''); }}>
           <option value="">{t.anyYear}</option>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </label>
+
+      <VersionSelect lang={lang} brand={brand && brand.name} model={modelName} year={year} value={version} onChange={setVersion} />
 
       <div className="sell-step">
         <span className="sell-step-label"><small>Step 4</small>{t.mileage}</span>
@@ -223,4 +230,4 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
       <button className="btn btn-dark sell-submit" disabled={busy}>{busy ? t.calculating : t.submit}</button>
     </form>
   );
-    }
+            }
