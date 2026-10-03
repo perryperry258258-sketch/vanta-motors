@@ -7,6 +7,7 @@ import AdminShell, { useRole } from '../../../../components/admin/AdminShell';
 import DealPanel from '../../../../components/admin/DealPanel';
 import ViewingPanel from '../../../../components/case/ViewingPanel';
 import QuestionsPanel from '../../../../components/case/QuestionsPanel';
+import ResultPanel from '../../../../components/case/ResultPanel';
 import { getSupabase } from '../../../../lib/supabase';
 import {
   CASE_STATUS, STATUS_LABEL, TYPE_LABEL, SOURCE_LABEL, CLOSED,
@@ -292,6 +293,16 @@ function CaseDetail() {
 
       {c.type !== 'sell' && c.partner_id && <ViewingPanel caseRow={c} mode="staff" isAdmin={role === 'admin'} onChange={load} />}
 
+      {c.type !== 'sell' && (
+        <ResultPanel
+          caseRow={c}
+          mode="staff"
+          customerName={(cu && (cu.name || cu.line_name)) || ''}
+          hasCustomerLine={!!(cu && cu.line_user_id)}
+          onChange={load}
+        />
+      )}
+
       <div className="case-section">
         <h3>客戶需求</h3>
         <textarea
@@ -340,4 +351,4 @@ function CaseDetail() {
       )}
     </>
   );
-          }
+}
