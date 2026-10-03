@@ -1,0 +1,103 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import AdminShell, { useRole } from '../../../components/admin/AdminShell';
+
+export default function MarketGapsPage() {
+  return (
+    <AdminShell>
+      <Gaps />
+    </AdminShell>
+  );
+}
+
+const REASONS = [
+  ['no_year', '沒有年份', '在車輛編輯頁補上年份。'],
+  ['brand', '品牌對不到', '品牌欄空白或寫法不同（例如中文品牌）。請在車輛編輯頁把品牌改成英文，例如 Toyota、BMW。'],
+  ['model', '車型對不到', '車型不在行情資料庫，或車名寫法系統認不得。把車名和這張表截圖給 Claude，可以補車型或加別名。'],
+  ['no_price', '有車型、沒有新車價', '車型對到了，但歷史新車價資料庫沒有這個車型的價格。需要補新車價資料。'],
+];
+const LABEL = Object.fromEntries(REASONS.map(([k, l]) => [k, l]));
+const STATUS = { published: '上架', draft: '草稿', unlisted: '下架' };
+const wan = (n) => `${Math.round(n / 1000) / 10}`;
+
+function Gaps() {
+  const { session } = useRole();
+  const [scope, setScope] = useState('published');
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+  const [tab, setTab] = useState('missing');
+
+  useEffect(() => {
+    setRows(null);
+    setError('');
+    fetch(`/api/admin/market-gaps?scope=${scope}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
+      .then((r) => r.json())
+      .then((d) => (d.error ? setError(d.error) : setRows(d.rows)))
+      .catch((e) => setError(e.message));
+  }, [scope, session.access_token]);
+
+  const counts = useMemo(() => {
+    const c = { ok: 0, missing: 0 };
+    (rows || []).forEach((r) => {
+      c[r.reason] = (c[r.reason] || 0) + 1;
+      if (r.reason !== 'ok') c.missing += 1;
+      else c.ok += 1;
+    });
+    return c;
+  }, [rows]);
+
+  const list = (rows || []).filter((r) => (tab === 'missing' ? r.reason !== 'ok' : r.reason === tab));
+
+  return (
+    <>
+      <h1>行情缺漏檢查</h1>
+      <p className="admin-muted">列出算不出市場行情的車輛，以及原因。修正後重新整理這頁就會更新。</p>
+      <div className="tabs">
+        <button aria-pressed={scope === 'published'} onClick={() => setScope('published')}>只看上架中</button>
+        <button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>包含草稿、下架</button>
+      </div>
+
+      {error && <p className="admin-error">{error}</p>}
+      {!rows && !error && <p className="admin-muted">檢查中…</p>}
+
+      {rows && (
+        <>
+          <div className="admin-card">
+            <ul className="rank">
+              <li><span>檢查車輛</span><span>{rows.length} 台</span></li>
+              <li><span>✅ 有行情</span><span>{counts.ok} 台</span></li>
+              <li><span>⚠️ 沒有行情</span><span>{counts.missing} 台</span></li>
+            </ul>
+          </div>
+          <div className="tabs">
+            <button aria-pressed={tab === 'missing'} onClick={() => setTab('missing')}>全部缺漏 {counts.missing}</button>
+            {REASONS.map(([k, l]) => (
+              <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l} {counts[k] || 0}</button>
+            ))}
+            <button aria-pressed={tab === 'ok'} onClick={() => setTab('ok')}>有行情 {counts.ok}</button>
+          </div>
+          {REASONS.filter(([k]) => k === tab).map(([k, l, how]) => <p key={k} className="admin-muted">怎麼修：{how}</p>)}
+          {list.length === 0 && <p className="admin-muted">這裡沒有車輛。</p>}
+          {list.map((r) => (
+            <div className="case-card" key={r.id}>
+              <div className="case-card-top">
+                <span className="case-no">{STATUS[r.status] || r.status}</span>
+                <span className={`badge badge-${r.reason === 'ok' ? 'ok' : 'warn'}`}>{r.reason === 'ok' ? '有行情' : LABEL[r.reason]}</span>
+              </div>
+              <h3>{r.title}</h3>
+              <p className="lead-meta">
+                品牌欄：{r.brand || '（空白）'}｜車型欄：{r.model || '（空白）'}｜年份：{r.year || '（空白）'}
+                <br />
+                系統對應：{r.matchedBrand || '—'} {r.matchedModel ? `｜${r.matchedModel}` : ''}
+                {r.market ? `｜行情 ${wan(r.market.low)}～${wan(r.market.high)} 萬` : ''}
+              </p>
+              <div className="inline-actions"><Link href={`/admin/edit?id=${r.id}`}>編輯車輛</Link></div>
+            </div>
+          ))}
+        </>
+      )}
+    </>
+  );
+            }
