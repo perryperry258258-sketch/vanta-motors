@@ -4,6 +4,8 @@ import { site } from '../../lib/site';
 import { latestCars } from '../../lib/cars';
 import { dict, alternates } from '../../lib/i18n';
 import { findDict } from '../../lib/i18n-find';
+import { getAdminSupabase } from '../../lib/supabaseAdmin';
+import { quoteCars } from '../../lib/buyback/quote';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +19,10 @@ export default async function Home({ params }) {
   const t = dict[lang];
 
   let latest = [];
+  let quotes = {};
   try {
     latest = await latestCars(6);
+    quotes = await quoteCars(getAdminSupabase(), latest.filter((c) => !c.price && !c.price_max));
   } catch (e) {
     console.error(e);
   }
@@ -52,7 +56,9 @@ export default async function Home({ params }) {
         {latest.length > 0 ? (
           <>
             <div className="grid">
-              {latest.map((car) => <CarCard key={car.id} car={car} lang={lang} />)}
+              {latest.map((car) => (
+                <CarCard key={car.id} car={car} lang={lang} market={quotes[car.id] && quotes[car.id].market} />
+              ))}
             </div>
             <div className="more-link">
               <Link href={`/${lang}/vehicles`} className="btn btn-light">{t.home.viewAll}</Link>
