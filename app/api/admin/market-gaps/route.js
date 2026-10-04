@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireRole } from '../../../../lib/supabaseAdmin';
 import { matchBrand, matchModel } from '../../../../lib/buyback/matchModel';
 import { quoteCars } from '../../../../lib/buyback/quote';
+import { fetchAll } from '../../../../lib/fetchAll';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -14,10 +15,13 @@ export async function GET(req) {
   const scope = new URL(req.url).searchParams.get('scope') === 'all' ? 'all' : 'published';
 
   try {
-    let q = db.from('cars').select('id, title, brand, model, year, mileage, status, price, price_max').limit(3000);
-    if (scope === 'published') q = q.eq('status', 'published');
-    const [{ data: cars }, { data: brands }] = await Promise.all([
-      q,
+    const build = () => {
+      let q = db.from('cars').select('id, title, brand, model, year, mileage, status, price, price_max').order('id');
+      if (scope === 'published') q = q.eq('status', 'published');
+      return q;
+    };
+    const [cars, { data: brands }] = await Promise.all([
+      fetchAll(build),
       db.from('buyback_brands').select('id, name, active, buyback_models(id, name, active)').eq('active', true),
     ]);
 
