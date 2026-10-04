@@ -92,15 +92,28 @@ async function handle(db, event) {
     if (partner) {
       await db.from('partners').update({ line_user_id: userId, line_bind_code: null, updated_at: new Date().toISOString() }).eq('id', partner.id);
       await reply(event.replyToken, [text(`${partner.name} 您好，LINE 綁定完成。之後 VANTA 轉交案件時會直接通知您。`)]);
-    } else {
-      await reply(event.replyToken, [text('綁定碼不正確或已使用過，請向 VANTA 索取新的綁定碼。')]);
+      return;
     }
+    // VANTA 管理員／客服綁定 LINE（接收每日跟進提醒）
+    const { data: staff } = await db
+      .from('profiles')
+      .select('user_id, display_name')
+      .eq('line_bind_code', bind[0].toUpperCase())
+      .maybeSingle();
+    if (staff) {
+      await db.from('profiles').update({ line_user_id: userId, line_bind_code: null }).eq('user_id', staff.user_id);
+      await reply(event.replyToken, [text(`${staff.display_name || ''} 您好，LINE 綁定完成。之後每天早上會收到待跟進案件提醒。`)]);
+      return;
+    }
+    await reply(event.replyToken, [text('綁定碼不正確或已使用過，請重新產生綁定碼。')]);
     return;
   }
 
-  // 合作車源傳來的一般訊息不建立客戶案件
+  // 合作車源、VANTA 員工傳來的一般訊息不建立客戶案件
   const { data: isPartner } = await db.from('partners').select('id').eq('line_user_id', userId).maybeSingle();
   if (isPartner) return;
+  const { data: isStaff } = await db.from('profiles').select('user_id').eq('line_user_id', userId).maybeSingle();
+  if (isStaff) return;
 
   const customer = await upsertCustomer(db, userId);
   if (!customer) return;
@@ -253,7 +266,8 @@ async function caseForCar(db, customer, ref, body) {
         source: 'website',
         customer_id: customer.id,
         car_id: car.id,
-        partner_id: car.source_owner_id || null,
+        // 不自動指派：由客服確認後再指派車源（案件頁會顯示這台車的建議車源）
+        partner_id: null,
         subject: car.title,
         customer_request: body,
       })
@@ -459,4 +473,4 @@ async function handlePostback(db, event) {
   await reply(event.replyToken, [
     text(response === 'confirmed' ? '已收到您的確認，謝謝您選擇 VANTA MOTORS。' : '已收到，我們會再與您聯繫。'),
   ]);
-}
+  }
