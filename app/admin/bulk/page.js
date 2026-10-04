@@ -7,6 +7,7 @@ import { getSupabase, BUCKET } from '../../../lib/supabase';
 import { compressImage } from '../../../lib/image';
 import { makeSlug } from '../../../lib/parseTitle';
 import { groupFiles } from '../../../lib/bulkParse';
+import { fetchAll } from '../../../lib/fetchAll';
 import '../../../styles/viewing.css';
 
 export default function BulkPage() {
@@ -48,7 +49,7 @@ function Bulk() {
   async function pick(fileList) {
     const groups = groupFiles(Array.from(fileList || []));
     const sigs = await Promise.all(groups.map((g) => photoSig(g.files)));
-    const { data: existing } = await getSupabase().from('cars').select('title, import_sig').limit(5000);
+    const existing = await fetchAll(() => getSupabase().from('cars').select('title, import_sig').order('id'));
     const siteSigs = new Set((existing || []).map((c) => c.import_sig).filter(Boolean));
     const siteTitles = new Set((existing || []).map((c) => titleKey(c.title)));
     const seen = new Set();
@@ -307,4 +308,4 @@ function Thumbs({ row, skipFirst, onChange, disabled }) {
       })}
     </div>
   );
-    }
+                }
