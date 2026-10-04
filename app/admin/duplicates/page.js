@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AdminShell from '../../../components/admin/AdminShell';
 import { getSupabase, photoUrl, BUCKET } from '../../../lib/supabase';
+import { fetchAll } from '../../../lib/fetchAll';
 
 export default function DuplicatesPage() {
   return (
@@ -27,14 +28,15 @@ function Duplicates() {
   const [error, setError] = useState('');
 
   async function load() {
-    const { data, error } = await getSupabase()
-      .from('cars')
-      .select('id, title, year, mileage, status, created_at, car_photos(path, sort_order)')
-      .order('created_at')
-      .limit(5000);
-    if (error) return setError('讀取失敗：' + error.message);
-    // 有案件的車優先保留（刪掉會讓案件失去車輛連結）
-    const { data: cs } = await getSupabase().from('cases').select('car_id').not('car_id', 'is', null).limit(5000);
+    let data;
+    let cs;
+    try {
+      data = await fetchAll(() => getSupabase().from('cars').select('id, title, year, mileage, status, created_at, car_photos(path, sort_order)').order('created_at').order('id'));
+      // 有案件的車優先保留（刪掉會讓案件失去車輛連結）
+      cs = await fetchAll(() => getSupabase().from('cases').select('car_id').not('car_id', 'is', null).order('id'));
+    } catch (e) {
+      return setError('讀取失敗：' + e.message);
+    }
     setWithCase(new Set((cs || []).map((c) => c.car_id)));
     setCars(data);
   }
@@ -148,4 +150,4 @@ function Duplicates() {
       ))}
     </>
   );
-}
+  }
