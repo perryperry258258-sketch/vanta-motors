@@ -6,6 +6,8 @@ import AdminShell from '../../../components/admin/AdminShell';
 import { getSupabase } from '../../../lib/supabase';
 import { SETTLEMENT_LABEL, VERIFICATION_LABEL, APPROVAL_LABEL, CATEGORY_LABEL, nt, toneOf } from '../../../lib/deal';
 import { shortDate } from '../../../lib/case';
+import { fetchAll } from '../../../lib/fetchAll';
+import '../../../styles/viewing.css';
 
 export default function OverviewPage() {
   return (
@@ -36,13 +38,16 @@ function Overview() {
     const head = { count: 'exact', head: true };
     const [cust, cases, viewing, verified, deals, costs, partners, settings, types] = await Promise.all([
       sb.from('customers').select('id', head).gte('created_at', today),
-      sb.from('cases').select('id, case_no, subject, status, partner_id, created_at, last_activity_at').order('created_at', { ascending: false }).limit(3000),
+      // 超過 1,000 筆要分頁讀完（Supabase 單次上限 1,000 筆）
+      fetchAll(() => sb.from('cases').select('id, case_no, subject, status, partner_id, created_at, last_activity_at').order('created_at', { ascending: false }).order('id')).then((data) => ({ data })),
       sb.from('case_events').select('id', head).eq('type', 'status').eq('meta->>to', 'viewing').gte('created_at', today),
       sb.from('case_events').select('id', head).eq('type', 'verified').gte('created_at', today),
-      sb.from('sales')
-        .select('*, case:cases!sales_case_id_fkey(id, case_no, subject), partner:partners!sales_partner_id_fkey(name), settlement:settlements!settlements_sale_id_fkey(*)')
-        .order('updated_at', { ascending: false })
-        .limit(2000),
+      fetchAll(() =>
+        sb.from('sales')
+          .select('*, case:cases!sales_case_id_fkey(id, case_no, subject), partner:partners!sales_partner_id_fkey(name), settlement:settlements!settlements_sale_id_fkey(*)')
+          .order('updated_at', { ascending: false })
+          .order('id')
+      ).then((data) => ({ data })),
       sb.from('sale_costs').select('*, sale:sales!sale_costs_sale_id_fkey(case_id, case:cases!sales_case_id_fkey(case_no, subject))').eq('approval', 'pending').order('created_at'),
       sb.from('partners').select('id, name').order('name'),
       sb.from('crm_settings').select('*').eq('id', 1).maybeSingle(),
@@ -54,8 +59,7 @@ function Overview() {
     const caseIds = (cases.data || []).map((c) => c.id);
     let statusEvents = [];
     if (caseIds.length) {
-      const { data: ev } = await sb.from('case_events').select('case_id, meta').eq('type', 'status').limit(20000);
-      statusEvents = ev || [];
+      statusEvents = await fetchAll(() => sb.from('case_events').select('case_id, meta').eq('type', 'status').order('id'));
     }
 
     setData({
@@ -249,9 +253,10 @@ function Overview() {
               {s && <div className="money-row money-total"><span>可分配利潤</span><span>{nt(s.gross_profit)}</span></div>}
             </div>
             {s && (
-              <div className="money-split">
+              <div className="money-split money-split-3">
+                <div><span>車商</span><strong>{nt(s.dealer_share)}</strong></div>
+                <div><span>業務</span><strong>{nt(s.partner_share)}</strong></div>
                 <div><span>VANTA</span><strong>{nt(s.vanta_share)}</strong></div>
-                <div><span>車源</span><strong>{nt(s.partner_share)}</strong></div>
               </div>
             )}
           </Link>
@@ -265,18 +270,17 @@ function Overview() {
 
 function Settings({ settings, types, onSaved }) {
   const [threshold, setThreshold] = useState(String(settings.cost_approval_threshold));
-  const [share, setShare] = useState(String(Math.round(Number(settings.vanta_share) * 100)));
   const [newType, setNewType] = useState({ name: '', category: 'reconditioning' });
 
   async function saveSettings() {
     const t = Math.round(Number(threshold));
-    const s = Number(share) / 100;
-    if (!(t >= 0) || !(s >= 0 && s <= 1)) return alert('請確認數字');
+    if (!(t >= 0)) return alert('請確認數字');
     const { error } = await getSupabase()
       .from('crm_settings')
-      .upsert({ id: 1, cost_approval_threshold: t, vanta_share: s, updated_at: new Date().toISOString() });
+      .update({ cost_approval_threshold: t, updated_at: new Date().toISOString() })
+      .eq('id', 1);
     if (error) return alert('儲存失敗：' + error.message);
-    alert('已儲存。分潤比例只會套用在之後重新計算的待結算案件。');
+    alert('已儲存。');
     onSaved();
   }
 
@@ -300,11 +304,11 @@ function Settings({ settings, types, onSaved }) {
 
   return (
     <div className="admin-card" style={{ marginTop: 32 }}>
-      <h3>分潤與成本規則</h3>
+      <h3>成本規則</h3>
       <div className="field-grid">
         <label className="field"><span>單筆成本超過多少需確認（元）</span><input type="number" inputMode="numeric" value={threshold} onChange={(e) => setThreshold(e.target.value)} /></label>
-        <label className="field"><span>VANTA 分潤比例（%）</span><input type="number" inputMode="numeric" value={share} onChange={(e) => setShare(e.target.value)} /></label>
       </div>
+      <p className="admin-muted">車商、業務、VANTA 的分潤比例改到「<Link href="/admin/agreements">合作協議</Link>」設定。</p>
       <div className="form-actions"><button className="btn btn-dark btn-sm" onClick={saveSettings}>儲存規則</button></div>
 
       <h3 style={{ marginTop: 20 }}>可扣除成本類型</h3>
@@ -330,4 +334,4 @@ function Settings({ settings, types, onSaved }) {
       <p className="admin-muted">最後更新 {settings.updated_at ? shortDate(settings.updated_at) : '—'}</p>
     </div>
   );
-}
+            }
