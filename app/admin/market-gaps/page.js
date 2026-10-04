@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AdminShell, { useRole } from '../../../components/admin/AdminShell';
+import { getSupabase } from '../../../lib/supabase';
+import '../../../styles/viewing.css';
 
 export default function MarketGapsPage() {
   return (
@@ -21,6 +23,7 @@ const REASONS = [
 const LABEL = Object.fromEntries(REASONS.map(([k, l]) => [k, l]));
 const STATUS = { published: '上架', draft: '草稿', unlisted: '下架' };
 const wan = (n) => `${Math.round(n / 1000) / 10}`;
+const compact = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 function Gaps() {
   const { session } = useRole();
@@ -29,6 +32,9 @@ function Gaps() {
   const [error, setError] = useState('');
   const [tab, setTab] = useState('missing');
   const [copied, setCopied] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [fixMsg, setFixMsg] = useState('');
+  const [reload, setReload] = useState(0);
 
   useEffect(() => setCopied(false), [tab, scope]);
 
@@ -39,7 +45,29 @@ function Gaps() {
       .then((r) => r.json())
       .then((d) => (d.error ? setError(d.error) : setRows(d.rows)))
       .catch((e) => setError(e.message));
-  }, [scope, session.access_token]);
+  }, [scope, session.access_token, reload]);
+
+  // 車型欄寫的不是車型（例如 Bose、K14、CC、空白），但系統已經對到正確車型 → 可以一鍵改成正確車型
+  const fixable = (rows || []).filter(
+    (r) => r.matchedModel && (compact(r.model) !== compact(r.matchedModel) || (r.matchedBrand && r.brand !== r.matchedBrand))
+  );
+
+  async function fixModels() {
+    if (!confirm(`把 ${fixable.length} 台車的品牌／車型欄改成系統對應的名稱？車名不會改。`)) return;
+    setFixing(true);
+    setFixMsg('');
+    const sb = getSupabase();
+    let ok = 0;
+    const failed = [];
+    for (const r of fixable) {
+      const { error } = await sb.from('cars').update({ model: r.matchedModel, brand: r.matchedBrand || r.brand }).eq('id', r.id);
+      if (error) failed.push(`${r.title}：${error.message}`);
+      else ok += 1;
+    }
+    setFixMsg(failed.length ? `已修正 ${ok} 台；${failed.length} 台失敗：${failed.join('；')}` : `已修正 ${ok} 台的品牌／車型欄。`);
+    setFixing(false);
+    setReload((n) => n + 1);
+  }
 
   const counts = useMemo(() => {
     const c = { ok: 0, missing: 0 };
@@ -99,6 +127,30 @@ function Gaps() {
               <li><span>⚠️ 沒有行情</span><span>{counts.missing} 台</span></li>
             </ul>
           </div>
+          {fixable.length > 0 && (
+            <div className="admin-card">
+              <h3>車型欄需要整理：{fixable.length} 台</h3>
+              <p className="admin-muted">
+                這些車的車型欄寫的是配備或簡稱（例如 Bose、K14、CC），系統已經從車名判斷出正確車型。整理後車型欄會一致，網站篩選與統計也比較準確，車名不會改。
+              </p>
+              <details className="viewing-history">
+                <summary>看會改哪些</summary>
+                <ul className="rank">
+                  {fixable.map((r) => (
+                    <li key={r.id} style={{ display: 'block' }}>
+                      <span>{r.title}</span>
+                      <br />
+                      <span className="admin-muted">{r.brand || '（空白）'} {r.model || '（空白）'} → {r.matchedBrand} {r.matchedModel}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+              <div className="case-actions">
+                <button className="btn btn-dark" onClick={fixModels} disabled={fixing}>{fixing ? '整理中…' : `一鍵整理 ${fixable.length} 台`}</button>
+              </div>
+              {fixMsg && <p className="result-box">{fixMsg}</p>}
+            </div>
+          )}
           <div className="tabs">
             <button aria-pressed={tab === 'missing'} onClick={() => setTab('missing')}>全部缺漏 {counts.missing}</button>
             {REASONS.map(([k, l]) => (
@@ -134,4 +186,4 @@ function Gaps() {
       )}
     </>
   );
-}
+            }
