@@ -11,6 +11,7 @@ import '../../styles/deal.css';
 // roles: 這個項目哪些角色看得到
 const NAV = [
   ['/admin/overview', '營運總覽', ['admin']],
+  ['/admin/reports', '分潤報表', ['admin']],
   ['/admin/cases', '案件', ['admin', 'staff']],
   ['/admin/find', '找車需求', ['admin', 'staff']],
   ['/admin/customers', '客戶', ['admin', 'staff']],
