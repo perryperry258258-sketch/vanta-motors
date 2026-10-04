@@ -50,7 +50,7 @@ function CaseDetail() {
     const sb = getSupabase();
     const [cr, ev, pr] = await Promise.all([
       sb.from('cases')
-        .select('*, customer:customers(*), partner:partners(*), car:cars(id, title, slug, status)')
+        .select('*, customer:customers(*), partner:partners(*), car:cars(id, title, slug, status, source_owner_id)')
         .eq('id', id)
         .maybeSingle(),
       sb.from('case_events').select('*').eq('case_id', id).order('created_at'),
@@ -262,6 +262,14 @@ function CaseDetail() {
         {c.car && c.car.status === 'published' && (
           <div className="inline-actions">
             <a href={`/zh/vehicles/${c.car.slug}`} target="_blank" rel="noopener noreferrer">查看車輛頁</a>
+          </div>
+        )}
+        {!c.partner_id && c.car && c.car.source_owner_id && (
+          <div className="result-box">
+            這台車的車源業務：<strong>{partnerName(c.car.source_owner_id)}</strong>
+            <div className="inline-actions">
+              <button onClick={() => update({ partner_id: c.car.source_owner_id })}>確認指派給 {partnerName(c.car.source_owner_id)}</button>
+            </div>
           </div>
         )}
         <select value={c.partner_id || ''} onChange={(e) => update({ partner_id: e.target.value || null })}>
