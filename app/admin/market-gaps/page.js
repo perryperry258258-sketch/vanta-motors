@@ -19,6 +19,7 @@ const REASONS = [
   ['brand', '品牌對不到', '品牌欄空白或寫法不同（例如中文品牌）。請在車輛編輯頁把品牌改成英文，例如 Toyota、BMW。'],
   ['model', '車型對不到', '車型不在行情資料庫，或車名寫法系統認不得。按「下載 CSV」傳給 Claude，可以補車型或加別名。'],
   ['no_price', '有車型、沒有新車價', '車型對到了，但歷史新車價資料庫沒有這個車型的價格。按「下載 CSV」傳給 Claude 補新車價。'],
+  ['hidden', '性能版不公開', '性能版或特殊版（GT4、GTS、AMG、M、RS 等）沒有對到同版本的新車價，系統估價容易低估，所以網站不顯示行情。按「下載 CSV」傳給 Claude 補該版本新車價。'],
 ];
 const LABEL = Object.fromEntries(REASONS.map(([k, l]) => [k, l]));
 const STATUS = { published: '上架', draft: '草稿', unlisted: '下架' };
