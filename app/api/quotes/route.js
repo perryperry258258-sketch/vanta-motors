@@ -16,7 +16,9 @@ export async function POST(req) {
       .select('id, title, brand, model, year, mileage')
       .in('id', ids)
       .eq('status', 'published');
-    const quotes = await quoteCars(db, cars || []);
+    const all = await quoteCars(db, cars || []);
+    // 只回傳可以公開顯示的行情
+    const quotes = Object.fromEntries(Object.entries(all).filter(([, q]) => q.publicOk).map(([id, q]) => [id, { market: q.market }]));
     return NextResponse.json({ quotes });
   } catch (e) {
     console.error(e);
