@@ -57,7 +57,7 @@ export default async function Home({ params }) {
           <>
             <div className="grid">
               {latest.map((car) => (
-                <CarCard key={car.id} car={car} lang={lang} market={quotes[car.id] && quotes[car.id].market} />
+                <CarCard key={car.id} car={car} lang={lang} market={quotes[car.id] && quotes[car.id].publicOk ? quotes[car.id].market : null} />
               ))}
             </div>
             <div className="more-link">
