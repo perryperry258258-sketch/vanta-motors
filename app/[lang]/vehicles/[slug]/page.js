@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Gallery from '../../../../components/Gallery';
 import ContactBar from '../../../../components/ContactBar';
-import EstimateBreakdown, { ValuationSummary } from '../../../../components/EstimateBreakdown';
 import { getCarBySlug } from '../../../../lib/cars';
 import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
 import { quoteForCar } from '../../../../lib/buyback/quote';
@@ -79,7 +78,8 @@ export default async function VehiclePage({ params }) {
   const title = displayTitle(car, lang);
   const showText = (s) => s && (lang === 'zh' || !hasCJK(s));
   const quote = await loadQuote(car);
-  const market = quote && quote.market;
+  // 網站只顯示市場行情區間；系統估值、折舊率、計算明細屬於內部資料，不公開
+  const market = quote && quote.publicOk ? quote.market : null;
 
   const rows = [
     [t.car.year, car.year],
@@ -111,13 +111,7 @@ export default async function VehiclePage({ params }) {
             </div>
           ))}
         </dl>
-        {market && (
-          <>
-            <ValuationSummary lang={lang} v={quote.valuation} />
-            <p className="detail-note">{L.marketNote}</p>
-            <EstimateBreakdown lang={lang} b={quote.breakdown} />
-          </>
-        )}
+        {market && <p className="detail-note">{L.marketNote}</p>}
         {showText(car.description) && <p className="detail-desc">{car.description}</p>}
         {car.source_owner_id && <p className="detail-note">{L.partnerNote}</p>}
         <p className="detail-note">{t.car.note}</p>
@@ -127,4 +121,4 @@ export default async function VehiclePage({ params }) {
       <ContactBar carId={car.id} title={title} lang={lang} />
     </main>
   );
-                  }
+}
