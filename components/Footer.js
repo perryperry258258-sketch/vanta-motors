@@ -22,6 +22,12 @@ export default function Footer({ lang }) {
               <a href={site.instagramUrl} target="_blank" rel="noopener noreferrer">Instagram</a>
             </>
           )}
+          {site.facebookUrl && (
+            <>
+              <span aria-hidden="true">|</span>
+              <a href={site.facebookUrl} target="_blank" rel="noopener noreferrer">Facebook</a>
+            </>
+          )}
         </p>
         <p className="footer-tagline">Pre-Owned Vehicles in Taiwan</p>
         <p className="footer-copy">© {new Date().getFullYear()} VANTA MOTORS</p>
