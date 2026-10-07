@@ -34,7 +34,7 @@ export async function GET(req) {
       else if (!b) reason = 'brand';
       else if (!m) reason = 'model';
       else if (!quotes[c.id]) reason = 'no_price';
-      else if (!quotes[c.id].publicOk) reason = 'hidden';
+      else if (!quotes[c.id].publicOk) reason = quotes[c.id].hiddenReason === 'low_data' ? 'low_data' : 'hidden';
       return {
         id: c.id,
         title: c.title,
