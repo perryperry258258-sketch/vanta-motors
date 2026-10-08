@@ -37,6 +37,7 @@ async function api(url, payload) {
 export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange }) {
   const [slots, setSlots] = useState([]);
   const [form, setForm] = useState(['', '', '']);
+  const [location, setLocation] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [notice, setNotice] = useState(null);
@@ -44,6 +45,9 @@ export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange 
   async function load() {
     const { data } = await getSupabase().from('viewing_slots').select('*').eq('case_id', caseRow.id).order('slot_at');
     setSlots(data || []);
+    // 預設帶入上次填的看車地點
+    const last = [...(data || [])].reverse().find((x) => x.location);
+    if (last) setLocation((v) => v || last.location);
   }
 
   useEffect(() => {
@@ -78,7 +82,7 @@ export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange 
     const values = form.filter(Boolean).map((v) => new Date(v).toISOString());
     if (!values.length) return setMsg('請至少填一個看車時間');
     run(
-      () => api('/api/partner/case', { caseId: caseRow.id, action: 'propose', slots: values }),
+      () => api('/api/partner/case', { caseId: caseRow.id, action: 'propose', slots: values, location: location.trim() }),
       (out) => (out.sent ? '已送出，VANTA 已用 LINE 請客戶選擇時間。客戶選好會通知你。' : '已送出，VANTA 客服會聯絡客戶確認時間。')
     );
     setForm(['', '', '']);
@@ -96,12 +100,13 @@ export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange 
       {caseRow.viewing_at && (
         <p className={`viewing-booked${upcoming ? '' : ' past'}`}>
           {upcoming ? '🟢 已預約看車' : '看車時間'}：{fmtSlot(caseRow.viewing_at)}
+          {caseRow.viewing_location && <><br /><span className="admin-muted">地點：{caseRow.viewing_location}</span></>}
         </p>
       )}
 
       {proposed.length > 0 && (
         <>
-          <p className="admin-muted">已提供給客戶的時間，等待客戶確認：</p>
+          <p className="admin-muted">已提供給客戶的時間，等待客戶確認{proposed[0].location ? `（地點：${proposed[0].location}）` : ''}：</p>
           <ul className="viewing-slots">
             {proposed.map((s) => (
               <li key={s.id}>
@@ -110,7 +115,7 @@ export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange 
                   <button
                     disabled={busy}
                     onClick={() => confirm(`確認客戶選擇 ${fmtSlot(s.slot_at)}？會通知車源並建立預約。`) &&
-                      run(() => api('/api/admin/viewing', { action: 'choose', slotId: s.id }), '已建立看車預約並通知車源。')}
+                      run(() => api('/api/admin/viewing', { action: 'choose', slotId: s.id }), (o) => (o.notified ? '已建立看車預約，並用 LINE 通知客戶與車源。' : '已建立看車預約並通知車源。客戶沒有連結 LINE，請另外告知時間地點。'))}
                   >
                     客戶選這個
                   </button>
@@ -139,6 +144,15 @@ export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange 
           <p className="admin-muted">
             {caseRow.viewing_at ? '需要改時間時，可以重新提供時間，客戶確認後會更新預約。' : '提供 1～3 個方便的看車時間，VANTA 會用 LINE 請客戶選擇。'}
           </p>
+          <label className="field">
+            <span>看車地點（地址）</span>
+            <input
+              value={location}
+              maxLength={200}
+              placeholder="例如：台中市西屯區○○路 123 號（留空則使用車商地址）"
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </label>
           {form.map((v, i) => (
             <input
               key={i}
@@ -151,7 +165,7 @@ export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange 
           <button className="btn btn-dark btn-block" disabled={busy} onClick={propose}>
             {busy ? '送出中…' : proposed.length ? '重新提供看車時間' : '送出看車時間'}
           </button>
-          <p className="admin-muted">客戶的聯絡方式由 VANTA 統一處理，不會提供給你，你的聯絡方式也不會提供給客戶。</p>
+          <p className="admin-muted">客戶的聯絡方式由 VANTA 統一處理，不會提供給你，你的聯絡方式也不會提供給客戶。客戶到場時會告知「VANTA 案件編號」，臨時狀況由 VANTA 協助聯繫。</p>
         </div>
       )}
 
@@ -181,4 +195,4 @@ export default function ViewingPanel({ caseRow, mode, isAdmin = false, onChange 
       )}
     </div>
   );
-}
+                }
