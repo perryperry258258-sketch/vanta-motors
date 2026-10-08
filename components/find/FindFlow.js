@@ -100,9 +100,6 @@ export default function FindFlow({ lang, brands, minYear, maxYear }) {
             <>
               <p className="estimate-range-label">{t.rangeLabel}</p>
               <p className="estimate-range">NT${nt(result.range.low)} – {nt(result.range.high)}</p>
-              {result.retail && (
-                <p className="estimate-sub">{t.retailLabel}　NT${nt(result.retail.low)} – {nt(result.retail.high)}</p>
-              )}
               <p className="estimate-note">{t.rangeNote}</p>
               <p className="estimate-updated">
                 {t.confidence}{t.confidenceLabel[result.confidence] || t.confidenceLabel.low}
