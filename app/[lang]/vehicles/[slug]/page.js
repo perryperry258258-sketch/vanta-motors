@@ -15,18 +15,24 @@ const LABELS = {
   zh: {
     partnerTag: 'VANTA 合作車源',
     selectedTag: 'VANTA MOTORS 精選車輛',
-    partnerNote: '這台車為 VANTA MOTORS 合作車源，由 VANTA 協助媒合、看車安排及資訊確認。車輛實際狀況、最終價格、交易條件及交車相關事項，由實際車輛提供者與您確認，並以實車檢視、相關紀錄及正式交易文件為準。',
+    partnerRole: '車輛由合作車商提供，VANTA 協助媒合與安排看車。',
+    partnerNote: '此車為 VANTA MOTORS 合作車源。VANTA 協助提供車輛展示、媒合、看車安排及資訊轉達服務。車輛實際狀況、最終價格、交易條件及交車相關事項，將由實際車輛提供者與您確認。網站資訊主要提供找車參考，實際車況建議於看車時親自確認，並以實車檢視、相關紀錄及正式交易文件為準。',
+    descTitle: '車輛提供者資訊',
+    descNote: '※以上車輛描述由實際車輛提供者提供，VANTA 協助整理刊登。實際車況、事故及維修紀錄，請於看車時向車輛提供者確認，並以實車檢視及相關紀錄為準。',
     price: '對客售價',
-    market: '市場行情價',
-    marketNote: '市場行情價依歷史新車價、年份、里程與目前同款車源初步推估，僅供參考；實際價格依車況、配備與里程確認。',
+    market: '系統行情參考區間',
+    marketNote: '「系統行情參考區間」為 VANTA 依車型、年份、里程、歷史新車價格及可取得之同款車源資料進行初步估算，提供找車時參考。此區間並非實際車輛售價、收購報價或交易價格；實際價格仍應依個別車況、配備、里程、車輛所在地及交易條件，由實際交易雙方確認。',
   },
   en: {
     partnerTag: 'Selected Partner Vehicle',
     selectedTag: 'VANTA MOTORS Selected Vehicle',
-    partnerNote: 'This is a VANTA MOTORS partner vehicle. VANTA assists with matching, viewing arrangements and information checks. The actual condition, final price, transaction terms and delivery are confirmed with you by the vehicle provider, subject to inspection, records and the formal transaction documents.',
+    partnerRole: 'Provided by a partner dealer. VANTA assists with matching and viewing arrangements.',
+    partnerNote: 'This is a VANTA MOTORS partner vehicle. VANTA provides listing, matching, viewing arrangements and information relay. The actual condition, final price, transaction terms and delivery will be confirmed with you by the vehicle provider. Website information is for reference; please check the condition in person at the viewing, subject to inspection, records and the formal transaction documents.',
+    descTitle: 'Information from the vehicle provider',
+    descNote: '* The description above is provided by the vehicle provider and organized by VANTA. Please confirm the actual condition, accident and service history with the provider at the viewing, subject to inspection and records.',
     price: 'Our Price',
-    market: 'Market Range',
-    marketNote: 'The market range is a rough estimate based on historical new-car price, age, mileage and similar listings, for reference only. Final pricing depends on condition, equipment and mileage.',
+    market: 'System Reference Range',
+    marketNote: 'The System Reference Range is VANTA\'s preliminary estimate based on model, year, mileage, historical new-car prices and available listings, for reference when searching. It is not a vehicle sale price, buyback offer or transaction price; the actual price is confirmed by the parties based on condition, equipment, mileage, location and terms.',
   },
 };
 
@@ -103,6 +109,7 @@ export default async function VehiclePage({ params }) {
       <div className="detail-body">
         <p className="detail-tag">{car.source_owner_id ? L.partnerTag : L.selectedTag}</p>
         <h1>{title}</h1>
+        {car.source_owner_id && <p className="detail-note" style={{ marginTop: 4 }}>{L.partnerRole}</p>}
         <dl className="specs">
           {rows.map(([k, v]) => (
             <div key={k}>
@@ -112,7 +119,14 @@ export default async function VehiclePage({ params }) {
           ))}
         </dl>
         {market && <p className="detail-note">{L.marketNote}</p>}
-        {showText(car.description) && <p className="detail-desc">{car.description}</p>}
+        {showText(car.description) && car.source_owner_id && (
+          <div className="detail-provider">
+            <p className="detail-tag">{L.descTitle}</p>
+            <p className="detail-desc">{car.description}</p>
+            <p className="detail-note">{L.descNote}</p>
+          </div>
+        )}
+        {showText(car.description) && !car.source_owner_id && <p className="detail-desc">{car.description}</p>}
         {car.source_owner_id && <p className="detail-note">{L.partnerNote}</p>}
         <p className="detail-note">{t.car.note}</p>
         <Link href={`/${lang}/vehicles`} className="back-link">{t.car.back}</Link>
