@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireRole, UUID_RE } from '../../../../lib/supabaseAdmin';
-import { sendSlotsToCustomer, chooseSlot } from '../../../../lib/viewing';
+import { sendSlotsToCustomer, chooseSlot, bookedMessage } from '../../../../lib/viewing';
+import { push, text } from '../../../../lib/line';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,20 @@ export async function POST(req) {
       if (!UUID_RE.test(slotId)) return fail('invalid slot');
       const r = await chooseSlot(ctx.db, slotId, { via: 'staff', actor });
       if (!r) return fail('這個時間已經失效或已被選定');
-      return NextResponse.json({ ok: true, when: r.when });
+      // 客服代客戶確認時，也用 LINE 傳預約資訊（時間、地點、到場方式）給客戶
+      let notified = false;
+      const { data: cu } = await ctx.db.from('cases').select('customer:customers(line_user_id)').eq('id', r.case.id).maybeSingle();
+      const lineId = cu && cu.customer && cu.customer.line_user_id;
+      if (lineId) {
+        const msg = await bookedMessage(ctx.db, r.case.id);
+        try {
+          await push(lineId, [text(msg)]);
+          notified = true;
+        } catch (e) {
+          console.error('notify customer failed', e);
+        }
+      }
+      return NextResponse.json({ ok: true, when: r.when, notified });
     }
     return fail('invalid action');
   } catch (e) {
