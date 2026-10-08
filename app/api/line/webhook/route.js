@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
 import { verifySignature, reply, getProfile, text, push } from '../../../../lib/line';
-import { chooseSlot, fmtSlot, viewingNotice, addCaseEvent } from '../../../../lib/viewing';
+import { chooseSlot, fmtSlot, addCaseEvent, bookedMessage } from '../../../../lib/viewing';
 import { HOLD_REPLY, TOPIC_LABEL } from '../../../../lib/questions';
 
 export const dynamic = 'force-dynamic';
@@ -330,7 +330,7 @@ async function handleSlot(db, event, params) {
 
   const { data: slot } = await db
     .from('viewing_slots')
-    .select('id, status, slot_at, case:cases(id, case_no, subject, customer:customers(line_user_id), partner:partners(dealer:dealers(name)))')
+    .select('id, status, slot_at, case:cases(id, case_no, subject, customer:customers(line_user_id))')
     .eq('id', slotId)
     .maybeSingle();
   if (!slot || !slot.case || !slot.case.customer || slot.case.customer.line_user_id !== userId) return;
@@ -348,12 +348,8 @@ async function handleSlot(db, event, params) {
     await reply(event.replyToken, [text('這個時間剛剛已經更新，我會再幫您確認。')]);
     return;
   }
-  const notice = await viewingNotice(db);
-  // 預約成功時告知實際車輛提供者（車商）名稱
-  const dealer = slot.case.partner && slot.case.partner.dealer && slot.case.partner.dealer.name;
-  await reply(event.replyToken, [
-    text(`您的看車預約已完成 ✅\n\n時間：${r.when}\n車輛：${slot.case.subject || '未指定車輛（請洽 VANTA 客服）'}\n${dealer ? `車輛提供者：${dealer}\n` : ''}案件編號：${slot.case.case_no}\n\n${notice}`),
-  ]);
+  // 預約成功：時間、地點與地圖、車輛提供者、到場方式、聯絡方式
+  await reply(event.replyToken, [text(await bookedMessage(db, slot.case.id))]);
 }
 
 // 看車需求：記錄在案件，已接案的車源用 LINE 通知提供時間
@@ -475,4 +471,4 @@ async function handlePostback(db, event) {
   await reply(event.replyToken, [
     text(response === 'confirmed' ? '已收到您的確認，謝謝您選擇 VANTA MOTORS。' : '已收到，我們會再與您聯繫。'),
   ]);
-                              }
+  }
