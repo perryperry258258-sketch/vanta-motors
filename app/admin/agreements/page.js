@@ -69,6 +69,7 @@ function Dealers({ dealers, onChange }) {
       company_no: form.company_no.trim() || null,
       contact_person: form.contact_person.trim() || null,
       contact_phone: form.contact_phone.trim() || null,
+      address: form.address.trim() || null,
       updated_at: new Date().toISOString(),
     };
     const sb = getSupabase();
@@ -87,8 +88,8 @@ function Dealers({ dealers, onChange }) {
       <ul className="rank">
         {dealers.map((d) => (
           <li key={d.id}>
-            <span>{d.name}{d.contact_person ? `｜${d.contact_person}` : ''}{d.contact_phone ? `｜${d.contact_phone}` : ''}</span>
-            <button className="text-link" onClick={() => setForm({ id: d.id, name: d.name, company_no: d.company_no || '', contact_person: d.contact_person || '', contact_phone: d.contact_phone || '' })}>編輯</button>
+            <span>{d.name}{d.contact_person ? `｜${d.contact_person}` : ''}{d.contact_phone ? `｜${d.contact_phone}` : ''}{d.address ? `｜${d.address}` : '｜⚠️ 未填看車地址'}</span>
+            <button className="text-link" onClick={() => setForm({ id: d.id, name: d.name, company_no: d.company_no || '', contact_person: d.contact_person || '', contact_phone: d.contact_phone || '', address: d.address || '' })}>編輯</button>
           </li>
         ))}
       </ul>
@@ -100,6 +101,7 @@ function Dealers({ dealers, onChange }) {
             <label className="field"><span>聯絡人</span><input {...set('contact_person')} /></label>
             <label className="field"><span>聯絡電話</span><input inputMode="tel" {...set('contact_phone')} /></label>
           </div>
+          <label className="field"><span>看車地址（業務沒填看車地點時，自動使用這個地址）</span><input placeholder="例如：台中市西屯區○○路 123 號" {...set('address')} /></label>
           <div className="form-actions">
             <button className="btn btn-light" onClick={() => setForm(null)}>取消</button>
             <button className="btn btn-dark" onClick={save}>{form.id ? '儲存' : '新增車商'}</button>
@@ -107,7 +109,7 @@ function Dealers({ dealers, onChange }) {
         </div>
       ) : (
         <div className="case-actions">
-          <button className="btn btn-light" onClick={() => setForm({ name: '', company_no: '', contact_person: '', contact_phone: '' })}>＋ 新增車商</button>
+          <button className="btn btn-light" onClick={() => setForm({ name: '', company_no: '', contact_person: '', contact_phone: '', address: '' })}>＋ 新增車商</button>
         </div>
       )}
       {msg && <p className="result-box">{msg}</p>}
@@ -348,4 +350,4 @@ function PartnerDetail({ partner, list, defaults, dealers, onChange }) {
       {msg && <p className="result-box">{msg}</p>}
     </div>
   );
-        }
+                     }
