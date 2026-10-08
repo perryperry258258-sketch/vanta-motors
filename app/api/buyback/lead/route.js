@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase, UUID_RE } from '../../../../lib/supabaseAdmin';
+import { cleanCondition } from '../../../../lib/buyback/conditions';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,11 +27,14 @@ export async function POST(req) {
       phone: clean(b.phone, 30),
       line_id: clean(b.lineId, 60),
     };
+    // 客人自填的車況（選填，只接受選項內的值）
+    const cond = cleanCondition(b.condition || {});
+    const keepCond = (old) => Object.fromEntries(Object.entries(cond).map(([k, v]) => [k, v || (old && old[k]) || null]));
     const now = new Date().toISOString();
 
     const { data: existing } = await db
       .from('buyback_leads')
-      .select('id, estimate_id, photo_paths, line_clicks, name, phone, line_id')
+      .select('id, estimate_id, photo_paths, line_clicks, name, phone, line_id, accident, flood, maintenance, region, condition_note')
       .eq('id', b.leadId)
       .maybeSingle();
 
@@ -42,6 +46,7 @@ export async function POST(req) {
           name: contact.name || existing.name,
           phone: contact.phone || existing.phone,
           line_id: contact.line_id || existing.line_id,
+          ...keepCond(existing),
           photo_paths: [...new Set([...(existing.photo_paths || []), ...photos])],
           line_clicks: (existing.line_clicks || 0) + 1,
           last_clicked_at: now,
@@ -54,6 +59,7 @@ export async function POST(req) {
         id: b.leadId,
         estimate_id: est.id,
         ...contact,
+        ...cond,
         brand_name: est.brand_name,
         model_name: est.model_name,
         year: est.year,
