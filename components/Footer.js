@@ -29,6 +29,11 @@ export default function Footer({ lang }) {
             </>
           )}
         </p>
+        <p className="footer-links">
+          <a href={`/${lang}/service`}>{lang === 'en' ? 'Service Terms' : '服務說明'}</a>
+          <span aria-hidden="true">|</span>
+          <a href={`/${lang}/privacy`}>{lang === 'en' ? 'Privacy Policy' : '隱私權政策'}</a>
+        </p>
         <p className="footer-tagline">Pre-Owned Vehicles in Taiwan</p>
         <p className="footer-copy">© {new Date().getFullYear()} VANTA MOTORS</p>
       </div>
