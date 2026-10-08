@@ -14,7 +14,7 @@ function entries(path, lastModified) {
 }
 
 export default async function sitemap() {
-  const items = [...entries(''), ...entries('/vehicles'), ...entries('/find-your-car'), ...entries('/sell-your-car')];
+  const items = [...entries(''), ...entries('/vehicles'), ...entries('/find-your-car'), ...entries('/sell-your-car'), ...entries('/service'), ...entries('/privacy')];
   try {
     // 車輛超過 1,000 台也要全部列出
     const data = await fetchAll(() => getSupabase().from('cars').select('slug, updated_at').eq('status', 'published').order('id'));
