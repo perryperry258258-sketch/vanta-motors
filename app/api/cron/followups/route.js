@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
 import { push, text } from '../../../../lib/line';
 import { buildDigest } from '../../../../lib/digest';
+import { sendViewingReminders } from '../../../../lib/viewing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -14,8 +15,10 @@ export async function GET(req) {
 
   const db = getAdminSupabase();
   const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
+  // 明天要看車的：提醒客戶和車源
+  const reminders = await sendViewingReminders(db, origin);
   const digest = await buildDigest(db, origin);
-  if (digest.empty) return NextResponse.json({ ok: true, sent: 0, reason: 'nothing to remind' });
+  if (digest.empty) return NextResponse.json({ ok: true, sent: 0, reminders, reason: 'nothing to remind' });
 
   const { data: staff } = await db.from('profiles').select('user_id, line_user_id').in('role', ['admin', 'staff']).not('line_user_id', 'is', null);
   let sent = 0;
@@ -27,5 +30,5 @@ export async function GET(req) {
       console.error('digest push failed', s.user_id, e);
     }
   }
-  return NextResponse.json({ ok: true, sent, counts: digest.counts });
+  return NextResponse.json({ ok: true, sent, reminders, counts: digest.counts });
 }
