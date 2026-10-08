@@ -16,8 +16,8 @@ const COND_TEXT = {
 };
 
 const PRICE_LABELS = {
-  zh: { buyback: '車商建議收購價', market: '市場行情價' },
-  en: { buyback: 'Dealer Buyback Estimate', market: 'Market Range' },
+  zh: { buyback: '初步收購價格參考', market: '系統行情參考區間' },
+  en: { buyback: 'Initial Buyback Price Reference', market: 'System Reference Range' },
 };
 
 const postJSON = (url, data, extra = {}) =>
@@ -166,8 +166,8 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
                 extra={
                   result.spreadLow
                     ? lang === 'en'
-                      ? `Dealer buyback = system valuation × ${Math.round(result.spreadLow * 100)}%–${Math.round(result.spreadHigh * 100)}%`
-                      : `車商建議收購價 ＝ 系統估值 × ${Math.round(result.spreadLow * 100)}%～${Math.round(result.spreadHigh * 100)}%`
+                      ? `Initial buyback reference = system valuation × ${Math.round(result.spreadLow * 100)}%–${Math.round(result.spreadHigh * 100)}%`
+                      : `初步收購價格參考 ＝ 系統估值 × ${Math.round(result.spreadLow * 100)}%～${Math.round(result.spreadHigh * 100)}%`
                     : null
                 }
               />
@@ -380,4 +380,4 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
       </p>
     </form>
   );
-}
+                           }
