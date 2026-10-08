@@ -3,6 +3,7 @@ import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
 import { verifySignature, reply, getProfile, text, push } from '../../../../lib/line';
 import { chooseSlot, fmtSlot, addCaseEvent, bookedMessage } from '../../../../lib/viewing';
 import { HOLD_REPLY, TOPIC_LABEL } from '../../../../lib/questions';
+import { CONFIRMED_REPLY, DENIED_REPLY } from '../../../../lib/confirm';
 
 export const dynamic = 'force-dynamic';
 
@@ -348,7 +349,7 @@ async function handleSlot(db, event, params) {
     await reply(event.replyToken, [text('這個時間剛剛已經更新，我會再幫您確認。')]);
     return;
   }
-  // 預約成功：時間、地點與地圖、車輛提供者、到場方式、聯絡方式
+  // 預約成功：時間、地點、車輛提供者、到場方式、聯絡方式
   await reply(event.replyToken, [text(await bookedMessage(db, slot.case.id))]);
 }
 
@@ -449,7 +450,7 @@ async function handlePostback(db, event) {
     .maybeSingle();
   if (!row) return;
   if (row.response) {
-    await reply(event.replyToken, [text('已收到您先前的回覆，謝謝。')]);
+    await reply(event.replyToken, [text('已收到您先前的回覆，謝謝您 😊')]);
     return;
   }
   if (new Date(row.expires_at) < new Date()) {
@@ -469,6 +470,6 @@ async function handlePostback(db, event) {
     await addCaseEvent(db, row.case_id, '客戶在 LINE 確認已完成購車', { visibility: 'partner', actor: '客戶（LINE）' });
   }
   await reply(event.replyToken, [
-    text(response === 'confirmed' ? '已收到您的確認，謝謝您選擇 VANTA MOTORS。' : '已收到，我們會再與您聯繫。'),
+    text(response === 'confirmed' ? CONFIRMED_REPLY : DENIED_REPLY),
   ]);
-  }
+}
