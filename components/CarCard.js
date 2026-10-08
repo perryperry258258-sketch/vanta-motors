@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { dict, displayTitle, formatPrice } from '../lib/i18n';
 
-const MARKET = { zh: '市場行情 ', en: 'Market ' };
+const MARKET = { zh: '行情參考 ', en: 'Est. ' };
 
 // market：沒有填價格的車，顯示系統算出的大概市場行情（{ low, high }，單位元）
 export default function CarCard({ car, lang = 'zh', market = null }) {
