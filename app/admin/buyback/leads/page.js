@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminShell from '../../../../components/admin/AdminShell';
 import { getSupabase } from '../../../../lib/supabase';
+import { conditionLabel } from '../../../../lib/buyback/conditions';
 
 export default function LeadsPage() {
   return (
@@ -170,6 +171,23 @@ function LeadCard({ lead, onChange }) {
             {[lead.name, lead.phone, lead.line_id && `LINE: ${lead.line_id}`].filter(Boolean).join('｜')}
           </>
         )}
+        {(lead.accident || lead.flood || lead.maintenance || lead.region) && (
+          <>
+            <br />
+            {[
+              lead.region,
+              lead.accident && `事故：${conditionLabel('accident', lead.accident)}`,
+              lead.flood && `泡水：${conditionLabel('flood', lead.flood)}`,
+              lead.maintenance && `保養：${conditionLabel('maintenance', lead.maintenance)}`,
+            ].filter(Boolean).join('｜')}
+          </>
+        )}
+        {lead.condition_note && (
+          <>
+            <br />
+            客人說明：{lead.condition_note}
+          </>
+        )}
       </p>
 
       <select className="lead-status" value={lead.status} onChange={(e) => setStatus(e.target.value)}>
@@ -224,4 +242,4 @@ function LeadCard({ lead, onChange }) {
       <p className="admin-muted">狀態：{STATUS_LABEL[lead.status]}</p>
     </div>
   );
-      }
+                                          }
