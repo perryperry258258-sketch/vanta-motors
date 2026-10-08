@@ -8,6 +8,12 @@ import { compressImage } from '../../lib/image';
 import { buildLineMessage, lineChatUrl, formatNT, formatKm, formatDate } from '../../lib/buyback/format';
 import EstimateBreakdown, { ValuationSummary } from '../EstimateBreakdown';
 import VersionSelect from '../VersionSelect';
+import { CONDITION_OPTIONS, CONDITION_KEYS, REGIONS } from '../../lib/buyback/conditions';
+
+const COND_TEXT = {
+  zh: { title: '車況資訊（選填）', lead: '多告訴我們一點，正式報價會更快、更準確。', region: '車輛所在地區', selectRegion: '選擇縣市', note: '其他說明', notePlaceholder: '例如：前保桿小擦傷、剛換新輪胎' },
+  en: { title: 'Vehicle Condition (Optional)', lead: 'A few details help us give you a faster, more accurate quote.', region: 'Vehicle location', selectRegion: 'Select city/county', note: 'Other notes', notePlaceholder: 'e.g. minor scratch on front bumper, new tires' },
+};
 
 const PRICE_LABELS = {
   zh: { buyback: '車商建議收購價', market: '市場行情價' },
@@ -31,6 +37,8 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
   const [leadId, setLeadId] = useState(null);
   const [photos, setPhotos] = useState({});
   const [contact, setContact] = useState({ name: '', phone: '', lineId: '' });
+  const [cond, setCond] = useState({ accident: '', flood: '', maintenance: '', region: '', note: '' });
+  const C = COND_TEXT[lang] || COND_TEXT.zh;
   const [copied, setCopied] = useState(false);
   const [clicked, setClicked] = useState(false);
 
@@ -111,7 +119,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
 
   const photoPaths = Object.values(photos).filter((p) => p.path).map((p) => p.path);
   const uploading = Object.values(photos).some((p) => p.uploading);
-  const message = result ? buildLineMessage(lang, result, photoPaths.length) : '';
+  const message = result ? buildLineMessage(lang, result, photoPaths.length, cond) : '';
   const lineHref = lineChatUrl(message);
 
   function copyMessage() {
@@ -125,7 +133,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
     if (!site.lineOaId) copyMessage();
     postJSON(
       '/api/buyback/lead',
-      { leadId, estimateId: result.id, name: contact.name, phone: contact.phone, lineId: contact.lineId, photoPaths },
+      { leadId, estimateId: result.id, name: contact.name, phone: contact.phone, lineId: contact.lineId, photoPaths, condition: cond },
       { keepalive: true }
     ).catch(() => {});
   }
@@ -187,6 +195,42 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
             </div>
           )}
         </div>
+
+        <section className="photos">
+          <h3>{C.title}</h3>
+          <p className="estimate-note">{C.lead}</p>
+          {CONDITION_KEYS.map((key) => {
+            const def = CONDITION_OPTIONS[key][lang === 'en' ? 'en' : 'zh'];
+            return (
+              <div className="sell-step" key={key}>
+                <span className="sell-step-label">{def.label}</span>
+                <div className="sell-chips">
+                  {def.options.map(([v, label]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={cond[key] === v}
+                      onClick={() => setCond({ ...cond, [key]: cond[key] === v ? '' : v })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <label className="sell-step">
+            <span className="sell-step-label">{C.region}</span>
+            <select value={cond.region} onChange={(e) => setCond({ ...cond, region: e.target.value })}>
+              <option value="">{C.selectRegion}</option>
+              {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          <label className="sell-step">
+            <span className="sell-step-label">{C.note}</span>
+            <input placeholder={C.notePlaceholder} maxLength={300} value={cond.note} onChange={(e) => setCond({ ...cond, note: e.target.value })} />
+          </label>
+        </section>
 
         <section className="photos">
           <h3>{t.photosTitle}</h3>
@@ -336,4 +380,4 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
       </p>
     </form>
   );
-            }
+}
