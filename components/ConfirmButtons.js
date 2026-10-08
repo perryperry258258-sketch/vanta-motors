@@ -39,6 +39,7 @@ export default function ConfirmButtons({ token, answered }) {
   return (
     <>
       <p className="lead" style={{ marginTop: 28 }}>請問是否已完成購車？</p>
+      <p style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7, color: "var(--mute)" }}>此確認主要用於 VANTA 的服務紀錄及案件管理，不取代您與實際車輛提供者簽署的買賣契約或其他交易文件。</p>
       <div className="confirm-actions">
         <button className="btn btn-dark" disabled={busy} onClick={() => answer('confirmed')}>
           是，已成交
