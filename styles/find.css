@@ -59,3 +59,13 @@
 .search-grid input { grid-column: 1 / -1; }
 @media (min-width: 900px) { .search-grid { grid-template-columns: 2fr 1fr 1fr 1fr; } .search-grid input { grid-column: auto; } }
 .search-meta { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 16px; font-size: 14px; color: var(--mute); }
+
+/* 車輛頁：車輛提供者資訊 */
+.detail-provider { margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; }
+.detail-provider .detail-desc { margin-top: 6px; }
+
+/* 服務說明、隱私權政策 */
+.legal { max-width: 760px; }
+.legal p { margin-top: 14px; line-height: 1.9; color: var(--ink2); font-size: 15px; }
+.legal h2 { margin-top: 28px; font-size: 17px; font-weight: 500; }
+.legal-updated { margin-top: 32px !important; font-size: 13px !important; color: var(--mute) !important; }
