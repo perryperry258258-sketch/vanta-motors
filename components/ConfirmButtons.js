@@ -28,9 +28,14 @@ export default function ConfirmButtons({ token, answered }) {
   if (result) {
     return (
       <div className="confirm-case" style={{ background: 'var(--white)', border: '1px solid var(--line)' }}>
-        <strong>{result === 'confirmed' ? '已收到您的確認，謝謝。' : '已收到，我們會再與您聯繫。'}</strong>
-        <p style={{ marginTop: 6 }}>
-          {result === 'confirmed' ? 'Thank you for confirming.' : "Thank you. We'll be in touch."}
+        <strong>{result === 'confirmed' ? '恭喜您迎接新車 🎉' : '收到，謝謝您告訴我們。'}</strong>
+        <p style={{ marginTop: 8, lineHeight: 1.8 }}>
+          {result === 'confirmed'
+            ? '謝謝您讓 VANTA MOTORS 陪您完成這次找車，祝您行車平安、用車愉快！之後不論是保養問題、想換車或賣車，或是身邊朋友在找車，都歡迎隨時在 LINE 找我們。'
+            : '如果還在考慮，或有任何想再確認的地方，隨時在 LINE 跟我們說，我們會繼續陪您找到合適的車。'}
+        </p>
+        <p style={{ marginTop: 6, fontSize: 13, color: 'var(--mute)' }}>
+          {result === 'confirmed' ? 'Congratulations on your new car! Thank you for choosing VANTA MOTORS.' : "Thank you for letting us know. We're here whenever you need us."}
         </p>
       </div>
     );
