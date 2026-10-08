@@ -22,6 +22,13 @@ const CONDITION_FIELDS = [
   ['maintenance_info', '保養紀錄', '例如：原廠定保至 6 萬公里'],
 ];
 
+const PARTNER_ACK = [
+  '以上車輛資訊由本人或車輛提供者確認屬實',
+  '我有權代表車輛提供者提供上述資訊',
+  '資訊如有變更，會立即更新或通知 VANTA',
+  '我知道 VANTA 僅負責資訊整理與媒合，不對上述車況作保證',
+];
+
 const UNSURE_HINT = '無法從車名判斷，請確認後填寫，不確定可以留空';
 
 function Field({ label, warn, children }) {
@@ -54,6 +61,8 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const [infoMeta, setInfoMeta] = useState({ at: null, by: null });
+  // 車源業務每次儲存前要確認的事項
+  const [ack, setAck] = useState([false, false, false, false]);
 
   useEffect(() => {
     if (isPartner) return;
@@ -171,6 +180,7 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
     const title = form.title.replace(/\s+/g, ' ').trim();
     if (!title) return setError('請輸入車名，例如 2021 BMW 320i。');
     if (photos.length === 0) return setError('請至少上傳一張照片。');
+    if (isPartner && !ack.every(Boolean)) return setError('請先勾選下方四項確認事項。');
 
     const num = (v) => (v === '' || v === null || v === undefined ? null : Math.round(Number(v)));
     let price = num(form.price);
@@ -202,6 +212,7 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
     };
     if (isPartner) {
       row.source_owner_id = partnerId;
+      row.partner_ack_at = new Date().toISOString();
       if (submitForReview) {
         row.review_status = 'pending';
         row.review_note = null;
@@ -419,6 +430,23 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
         </Field>
       )}
 
+      {isPartner && (
+        <div className="admin-card" style={{ marginTop: 20 }}>
+          <h3>送出前請確認</h3>
+          {PARTNER_ACK.map((text, i) => (
+            <label key={text} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, lineHeight: 1.6, marginTop: 8 }}>
+              <input
+                type="checkbox"
+                style={{ width: 'auto', height: 'auto', margin: '4px 0 0' }}
+                checked={ack[i]}
+                onChange={(e) => setAck(ack.map((v, j) => (j === i ? e.target.checked : v)))}
+              />
+              {text}
+            </label>
+          ))}
+        </div>
+      )}
+
       {id && <VehicleHistory carId={id} />}
 
       {error && <p className="admin-error">{error}</p>}
@@ -444,4 +472,4 @@ export default function CarEditor({ id, mode = 'admin', partnerId = null, backHr
       </div>
     </>
   );
-      }
+                                                          }
