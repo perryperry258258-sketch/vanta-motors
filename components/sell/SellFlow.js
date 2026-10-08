@@ -176,24 +176,6 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
             <p className="estimate-nodata">{t.noData}</p>
           )}
 
-          <div className="estimate-cta">
-            <a className="btn btn-dark" href={lineHref} target="_blank" rel="noopener noreferrer" onClick={onLine}>
-              {hasRange ? t.lineCta : t.lineCtaNoData}
-            </a>
-          </div>
-
-          {!site.lineOaId && (
-            <div className="line-fallback">
-              {clicked && <p>{t.fallback}</p>}
-              {clicked && <pre>{message}</pre>}
-              <div className="line-fallback-row">
-                <span>LINE ID：{site.lineId}</span>
-                <button type="button" className="text-link" onClick={copyMessage}>
-                  {copied ? t.copied : t.copy}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <section className="photos">
@@ -280,7 +262,7 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
 
           <div className="estimate-cta">
             <a
-              className={`btn btn-light${uploading ? ' is-disabled' : ''}`}
+              className={`btn btn-dark${uploading ? ' is-disabled' : ''}`}
               href={lineHref}
               target="_blank"
               rel="noopener noreferrer"
@@ -293,9 +275,22 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
                 onLine();
               }}
             >
-              {uploading ? t.uploading : t.sendLine}
+              {uploading ? t.uploading : hasRange ? t.lineCta : t.lineCtaNoData}
             </a>
           </div>
+
+          {!site.lineOaId && (
+            <div className="line-fallback">
+              {clicked && <p>{t.fallback}</p>}
+              {clicked && <pre>{message}</pre>}
+              <div className="line-fallback-row">
+                <span>LINE ID：{site.lineId}</span>
+                <button type="button" className="text-link" onClick={copyMessage}>
+                  {copied ? t.copied : t.copy}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         <div className="restart">
@@ -380,4 +375,4 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
       </p>
     </form>
   );
-                           }
+                                                                 }
