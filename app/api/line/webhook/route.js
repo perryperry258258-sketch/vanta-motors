@@ -401,22 +401,23 @@ async function handleAsk(db, event, params) {
   }
 
   // 車況、價格、里程：VANTA 不自行回答，建立車況確認給車源
-  if (c.partner_id) {
-    const { data: open } = await db
-      .from('partner_questions')
-      .select('id')
-      .eq('case_id', c.id)
-      .eq('topic', kind)
-      .eq('status', 'open')
-      .limit(1);
-    if (!open || !open.length) {
-      await db.from('partner_questions').insert({
-        case_id: c.id,
-        partner_id: c.partner_id,
-        topic: kind,
-        question: ASK_QUESTION[kind],
-        created_by_label: '客戶（LINE）',
-      });
+  // 還沒指派車源時也先建立，客服指派車源後會自動轉給該車源（資料庫觸發器處理）
+  const { data: open } = await db
+    .from('partner_questions')
+    .select('id')
+    .eq('case_id', c.id)
+    .eq('topic', kind)
+    .eq('status', 'open')
+    .limit(1);
+  if (!open || !open.length) {
+    await db.from('partner_questions').insert({
+      case_id: c.id,
+      partner_id: c.partner_id || null,
+      topic: kind,
+      question: ASK_QUESTION[kind],
+      created_by_label: '客戶（LINE）',
+    });
+    if (c.partner_id) {
       await addCaseEvent(db, c.id, `請車源確認（${TOPIC_LABEL[kind]}）：${ASK_QUESTION[kind]}`, { visibility: 'partner', actor: '客戶（LINE）' });
       if (c.partner && c.partner.line_user_id) {
         try {
@@ -427,9 +428,9 @@ async function handleAsk(db, event, params) {
           console.error('notify partner failed', e);
         }
       }
+    } else {
+      await addCaseEvent(db, c.id, `客戶想了解：${TOPIC_LABEL[kind]}（尚未指定車源，指派後會自動轉給車源確認）`, { actor: '客戶（LINE）' });
     }
-  } else {
-    await addCaseEvent(db, c.id, `客戶想了解：${TOPIC_LABEL[kind]}（尚未指定車源，請先指派）`, { actor: '客戶（LINE）' });
   }
   await db.from('cases').update({ unread: true, last_customer_msg_at: new Date().toISOString() }).eq('id', c.id);
   await reply(event.replyToken, [text(HOLD_REPLY)]);
