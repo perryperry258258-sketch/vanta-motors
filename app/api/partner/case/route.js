@@ -55,12 +55,20 @@ export async function POST(req) {
       const v = validateSlots(body && body.slots);
       if (v.error) return fail(v.error);
 
+      // 看車地點：車源填寫；沒填就用所屬車商的地址
+      let location = String((body && body.location) || '').trim().slice(0, 200);
+      if (!location) {
+        const { data: p } = await db.from('partners').select('dealer:dealers(address)').eq('id', profile.partner_id).maybeSingle();
+        location = (p && p.dealer && p.dealer.address) || '';
+      }
+      if (!location) return fail('請填寫看車地點');
+
       await db.from('viewing_slots').update({ status: 'cancelled' }).eq('case_id', c.id).eq('status', 'proposed');
       const { error } = await db
         .from('viewing_slots')
-        .insert(v.slots.map((slot_at) => ({ case_id: c.id, partner_id: profile.partner_id, slot_at, created_by: ctx.user.id })));
+        .insert(v.slots.map((slot_at) => ({ case_id: c.id, partner_id: profile.partner_id, slot_at, location, created_by: ctx.user.id })));
       if (error) throw error;
-      await addCaseEvent(db, c.id, `車源提供看車時間：${v.slots.map(fmtSlot).join('、')}，等待客戶確認`, { visibility: 'partner', actor });
+      await addCaseEvent(db, c.id, `車源提供看車時間：${v.slots.map(fmtSlot).join('、')}，地點：${location}，等待客戶確認`, { visibility: 'partner', actor });
 
       const sent = await sendSlotsToCustomer(db, c.id, 'VANTA 系統');
       return NextResponse.json({ ok: true, sent: sent.sent, reason: sent.reason || null });
