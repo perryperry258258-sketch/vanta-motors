@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase, UUID_RE } from '../../../../lib/supabaseAdmin';
 import { cleanCondition } from '../../../../lib/buyback/conditions';
+import { readSource } from '../../../../lib/source';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,8 @@ export async function POST(req) {
         estimate_id: est.id,
         ...contact,
         ...cond,
+        // 客人從哪裡來（IG、FB、Google…），建立收車案件時會一起帶過去
+        ...readSource(req),
         brand_name: est.brand_name,
         model_name: est.model_name,
         year: est.year,
