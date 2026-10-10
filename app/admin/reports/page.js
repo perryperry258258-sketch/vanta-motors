@@ -6,6 +6,7 @@ import { getSupabase } from '../../../lib/supabase';
 import { fetchAll } from '../../../lib/fetchAll';
 import { SETTLEMENT_LABEL, nt } from '../../../lib/deal';
 import { SOURCE_LABEL } from '../../../lib/case';
+import { SOURCES, SOURCE_LABEL as UTM_LABEL, MEDIUMS, MEDIUM_LABEL, buildTrackedUrl } from '../../../lib/source';
 import '../../../styles/viewing.css';
 
 export default function ReportsPage() {
@@ -34,10 +35,10 @@ function Reports() {
         const [sales, cases, partners, dealers] = await Promise.all([
           fetchAll(() =>
             sb.from('sales')
-              .select('id, sale_price, sale_date, verification, partner_id, updated_at, case:cases!sales_case_id_fkey(case_no, subject), settlement:settlements!settlements_sale_id_fkey(*)')
+              .select('id, sale_price, sale_date, verification, partner_id, updated_at, case:cases!sales_case_id_fkey(case_no, subject, utm_source), settlement:settlements!settlements_sale_id_fkey(*)')
               .order('id')
           ),
-          fetchAll(() => sb.from('cases').select('id, type, source, status, partner_id, created_at').order('id')),
+          fetchAll(() => sb.from('cases').select('id, type, source, status, partner_id, created_at, utm_source, utm_medium').order('id')),
           sb.from('partners').select('id, name, dealer_id').order('name'),
           sb.from('dealers').select('id, name').order('name'),
         ]);
@@ -95,6 +96,24 @@ function Reports() {
       sources[c.source] = (sources[c.source] || 0) + 1;
     });
 
+    // 行銷來源：本月新案件（含賣車）從哪個管道來、成交幾台、帶來多少 VANTA 分潤
+    const byUtm = new Map();
+    const utmKey = (v) => v || '_none';
+    data.cases.filter((c) => ym(c.created_at) === month).forEach((c) => {
+      const k = utmKey(c.utm_source);
+      const x = byUtm.get(k) || { key: k, cases: 0, won: 0, deals: 0, vanta: 0 };
+      x.cases += 1;
+      if (c.status === 'won') x.won += 1;
+      byUtm.set(k, x);
+    });
+    deals.forEach((s) => {
+      const k = utmKey(s.case && s.case.utm_source);
+      const x = byUtm.get(k) || { key: k, cases: 0, won: 0, deals: 0, vanta: 0 };
+      x.deals += 1;
+      x.vanta += Number(st(s).vanta_share) || 0;
+      byUtm.set(k, x);
+    });
+
     return {
       deals,
       newCases: monthCases.length,
@@ -109,6 +128,7 @@ function Reports() {
       byDealer: [...byDealer.values()].sort((a, b) => b.share - a.share),
       byPartner: [...byPartner.values()].sort((a, b) => b.count - a.count || (b.cases || 0) - (a.cases || 0)),
       sources: Object.entries(sources).sort((a, b) => b[1] - a[1]),
+      byUtm: [...byUtm.values()].sort((a, b) => b.cases - a.cases),
       dealerName,
       partnerOf,
     };
@@ -211,6 +231,25 @@ function Reports() {
             </ul>
           </div>
 
+          <div className="admin-card">
+            <h3>行銷來源</h3>
+            <p className="admin-muted">客人從哪個管道來到網站（IG、FB、Google…）。「直接加 LINE／未知」是沒有經過網站、或直接打網址進來的客人。</p>
+            {r.byUtm.length === 0 && <p className="admin-muted">本月沒有案件。</p>}
+            <ul className="rank">
+              {r.byUtm.map((x) => (
+                <li key={x.key} style={{ display: 'block' }}>
+                  <span>{x.key === '_none' ? '直接加 LINE／未知' : UTM_LABEL[x.key] || x.key}</span>
+                  <br />
+                  <span className="admin-muted">
+                    新案件 {x.cases} 件｜成交 {x.deals} 台｜成交率 {pct(x.won, x.cases)}｜VANTA 分潤 {nt(x.vanta)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <LinkBuilder />
+
           {r.deals.length > 0 && (
             <div className="admin-card">
               <h3>本月成交明細</h3>
@@ -234,4 +273,42 @@ function Reports() {
       )}
     </>
   );
-                                     }
+}
+
+// 產生追蹤連結：貼到 IG、FB、廣告的網址加上來源，之後在「行銷來源」看得到效果
+function LinkBuilder() {
+  const [form, setForm] = useState({ page: 'https://vantamotors.tw/zh', source: 'instagram', medium: 'post', campaign: '' });
+  const [copied, setCopied] = useState(false);
+  const url = buildTrackedUrl(form.page.trim(), form.source, form.medium, form.campaign.trim());
+  const set = (k) => (e) => {
+    setCopied(false);
+    setForm({ ...form, [k]: e.target.value });
+  };
+  return (
+    <div className="admin-card">
+      <h3>產生追蹤連結</h3>
+      <p className="admin-muted">要貼到 IG、FB、廣告的網址，先在這裡產生，系統就能分辨客人是從哪裡來的。</p>
+      <label className="field"><span>網址（首頁、在售車輛或某台車的網址）</span><input value={form.page} onChange={set('page')} /></label>
+      <div className="field-grid">
+        <label className="field"><span>平台</span>
+          <select value={form.source} onChange={set('source')}>{SOURCES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+        </label>
+        <label className="field"><span>類型</span>
+          <select value={form.medium} onChange={set('medium')}>{MEDIUMS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+        </label>
+      </div>
+      <label className="field"><span>活動名稱（選填，英文或數字，例如 2026-10-reels）</span><input value={form.campaign} onChange={set('campaign')} /></label>
+      {url ? (
+        <>
+          <p className="result-box" style={{ wordBreak: 'break-all' }}>{url}</p>
+          <div className="inline-actions">
+            <button onClick={() => navigator.clipboard && navigator.clipboard.writeText(url).then(() => setCopied(true))}>{copied ? '已複製' : '複製連結'}</button>
+          </div>
+          <p className="admin-muted">類型「{MEDIUM_LABEL[form.medium]}」。IG 個人檔案的網站連結，建議換成平台 Instagram＋類型「個人檔案連結」的版本。</p>
+        </>
+      ) : (
+        <p className="admin-error">網址格式不正確，請包含 https://</p>
+      )}
+    </div>
+  );
+                          }
