@@ -90,6 +90,28 @@ function Notify() {
       )}
       {state && (
         <div className="admin-card">
+          <h3>LINE 本月訊息用量</h3>
+          {state.quota && state.quota.limit ? (
+            <>
+              <p className="value">
+                已用 {state.quota.used.toLocaleString('en-US')}／{state.quota.limit.toLocaleString('en-US')} 則（{Math.round(state.quota.ratio * 100)}%）
+              </p>
+              <div style={{ height: 8, borderRadius: 999, background: 'var(--paper)', overflow: 'hidden', marginTop: 8 }}>
+                <div style={{ width: `${Math.min(100, Math.round(state.quota.ratio * 100))}%`, height: '100%', background: state.quota.ratio >= 0.8 ? '#a1281e' : 'var(--black)' }} />
+              </div>
+              <p className="admin-muted" style={{ marginTop: 8 }}>
+                只有主動推播（通知業務、傳看車時間、提醒、成交確認）會計入；回覆客人訊息不計入。用到 80% 時，每日提醒會出現警告。
+              </p>
+            </>
+          ) : state.quota ? (
+            <p className="value">已用 {state.quota.used.toLocaleString('en-US')} 則（目前方案沒有上限）</p>
+          ) : (
+            <p className="admin-muted">暫時讀不到用量，請確認 LINE 設定。</p>
+          )}
+        </div>
+      )}
+      {state && (
+        <div className="admin-card">
           <h3>今日提醒預覽</h3>
           <pre style={{ whiteSpace: 'pre-wrap', font: 'inherit', fontSize: 14 }}>{state.preview}</pre>
         </div>
