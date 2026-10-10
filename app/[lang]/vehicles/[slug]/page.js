@@ -7,6 +7,7 @@ import { getCarBySlug } from '../../../../lib/cars';
 import { getAdminSupabase } from '../../../../lib/supabaseAdmin';
 import { quoteForCar } from '../../../../lib/buyback/quote';
 import { dict, alternates, displayTitle, formatPrice, formatMileage, hasCJK } from '../../../../lib/i18n';
+import { carTags } from '../../../../lib/carTags';
 import '../../../../styles/find.css';
 
 export const dynamic = 'force-dynamic';
@@ -109,6 +110,11 @@ export default async function VehiclePage({ params }) {
       <div className="detail-body">
         <p className="detail-tag">{car.source_owner_id ? L.partnerTag : L.selectedTag}</p>
         <h1>{title}</h1>
+        {carTags(car, lang).length > 0 && (
+          <div className="detail-tags">
+            {carTags(car, lang).map(([k, label]) => <span key={k} className={`car-tag car-tag-${k}`}>{label}</span>)}
+          </div>
+        )}
         {car.source_owner_id && <p className="detail-note" style={{ marginTop: 4 }}>{L.partnerRole}</p>}
         <dl className="specs">
           {rows.map(([k, v]) => (
