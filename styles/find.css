@@ -69,3 +69,14 @@
 .legal p { margin-top: 14px; line-height: 1.9; color: var(--ink2); font-size: 15px; }
 .legal h2 { margin-top: 28px; font-size: 17px; font-weight: 500; }
 .legal-updated { margin-top: 32px !important; font-size: 13px !important; color: var(--mute) !important; }
+
+/* 車輛標籤：新到車、低里程 */
+.card-img { position: relative; }
+.card-tags { position: absolute; left: 8px; top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.car-tag { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; letter-spacing: .04em; background: rgba(255,255,255,.92); color: var(--black); }
+.car-tag-new { background: var(--black); color: var(--white); }
+.detail-tags { display: flex; gap: 6px; margin-top: 8px; }
+.detail-tags .car-tag { border: 1px solid var(--line); }
+.tag-chips { display: flex; gap: 8px; margin-bottom: 12px; }
+.tag-chips button { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--white); font-size: 13px; color: var(--ink2); }
+.tag-chips button[aria-pressed="true"] { background: var(--black); border-color: var(--black); color: var(--white); }
