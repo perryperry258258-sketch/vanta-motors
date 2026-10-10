@@ -80,3 +80,11 @@
 .tag-chips { display: flex; gap: 8px; margin-bottom: 12px; }
 .tag-chips button { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--white); font-size: 13px; color: var(--ink2); }
 .tag-chips button[aria-pressed="true"] { background: var(--black); border-color: var(--black); color: var(--white); }
+
+/* 已售出 */
+.card-sold .card-img img { filter: grayscale(.6); opacity: .75; }
+.car-tag-sold { background: var(--black); color: var(--white); }
+.sold-box { margin: 18px 0 8px; padding: 18px; border-radius: 16px; background: var(--paper); }
+.sold-box h2 { font-size: 18px; font-weight: 500; }
+.sold-box p { margin-top: 8px; font-size: 14px; line-height: 1.8; color: var(--ink2); }
+.sold-box .contact-actions { margin-top: 14px; }
