@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '../../../../lib/supabaseAdmin';
-import { push, text } from '../../../../lib/line';
+import { push, text, getQuota } from '../../../../lib/line';
 import { buildDigest } from '../../../../lib/digest';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +12,9 @@ export async function GET(req) {
   const ctx = await requireRole(req, ['admin', 'staff']);
   if (!ctx) return fail('unauthorized', 401);
   const { data } = await ctx.db.from('profiles').select('line_user_id, line_bind_code').eq('user_id', ctx.user.id).maybeSingle();
-  const digest = await buildDigest(ctx.db, new URL(req.url).origin);
-  return NextResponse.json({ bound: !!(data && data.line_user_id), code: (data && data.line_bind_code) || null, preview: digest.text });
+  const quota = await getQuota();
+  const digest = await buildDigest(ctx.db, new URL(req.url).origin, { quota });
+  return NextResponse.json({ bound: !!(data && data.line_user_id), code: (data && data.line_bind_code) || null, preview: digest.text, quota });
 }
 
 export async function POST(req) {
@@ -33,7 +34,7 @@ export async function POST(req) {
   if (body.action === 'test') {
     const { data } = await db.from('profiles').select('line_user_id').eq('user_id', user.id).maybeSingle();
     if (!data || !data.line_user_id) return fail('還沒有綁定 LINE');
-    const digest = await buildDigest(db, new URL(req.url).origin);
+    const digest = await buildDigest(db, new URL(req.url).origin, { quota: await getQuota() });
     try {
       await push(data.line_user_id, [text(digest.text)]);
     } catch (e) {
