@@ -16,6 +16,7 @@ const EXTRA = {
     kmLabel: '里程',
     kms: [['', '不限里程'], ['30000', '3 萬公里內'], ['50000', '5 萬公里內'], ['100000', '10 萬公里內'], ['150000', '15 萬公里內']],
     total: (n) => `共 ${n} 台`,
+    tags: [['', '全部車輛'], ['new', '新到車'], ['lowkm', '低里程']],
     clear: '清除篩選',
   },
   en: {
@@ -25,6 +26,7 @@ const EXTRA = {
     kmLabel: 'Mileage',
     kms: [['', 'Any mileage'], ['30000', 'Under 30,000 km'], ['50000', 'Under 50,000 km'], ['100000', 'Under 100,000 km'], ['150000', 'Under 150,000 km']],
     total: (n) => `${n} vehicles`,
+    tags: [['', 'All vehicles'], ['new', 'New Arrivals'], ['lowkm', 'Low Mileage']],
     clear: 'Clear filters',
   },
 };
@@ -37,6 +39,7 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
   const [year, setYear] = useState('');
   const [sort, setSort] = useState('new');
   const [km, setKm] = useState('');
+  const [tag, setTag] = useState('');
   const [cars, setCars] = useState(initial.cars);
   const [hasMore, setHasMore] = useState(initial.hasMore);
   const [total, setTotal] = useState(initial.total ?? null);
@@ -82,7 +85,7 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await searchCars({ q, brand, year, sort, km, page: 0 });
+        const res = await searchCars({ q, brand, year, sort, km, tag, page: 0 });
         if (id === requestId.current) {
           setCars(res.cars);
           setHasMore(res.hasMore);
@@ -96,13 +99,13 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [q, brand, year, sort, km]);
+  }, [q, brand, year, sort, km, tag]);
 
   async function loadMore() {
     const id = ++requestId.current;
     setLoading(true);
     try {
-      const res = await searchCars({ q, brand, year, sort, km, page: page + 1 });
+      const res = await searchCars({ q, brand, year, sort, km, tag, page: page + 1 });
       if (id === requestId.current) {
         setCars((prev) => [...prev, ...res.cars]);
         setHasMore(res.hasMore);
@@ -115,9 +118,10 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
     }
   }
 
-  const filtered = q || brand || year || km || sort !== 'new';
+  const filtered = q || brand || year || km || tag || sort !== 'new';
   function clearAll() {
     setQ('');
+    setTag('');
     setBrand('');
     setYear('');
     setKm('');
@@ -135,6 +139,12 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
           <button key={b} aria-pressed={brand === b} onClick={() => setBrand(brand === b ? '' : b)}>
             {b}{counts.brands[b] ? <small>{counts.brands[b]}</small> : null}
           </button>
+        ))}
+      </div>
+
+      <div className="tag-chips">
+        {X.tags.map(([v, l]) => (
+          <button key={v || 'all'} aria-pressed={tag === v} onClick={() => setTag(v)}>{l}</button>
         ))}
       </div>
 
@@ -202,4 +212,4 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       )}
     </>
   );
-            }
+        }
