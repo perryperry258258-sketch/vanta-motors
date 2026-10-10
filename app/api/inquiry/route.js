@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminSupabase, UUID_RE } from '../../../lib/supabaseAdmin';
+import { readSource } from '../../../lib/source';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,8 @@ export async function POST(req) {
       car_title: car.title,
       kind: 'line',
       lang: b.lang === 'en' ? 'en' : 'zh',
+      // 客人從哪裡來（IG、FB、Google…），轉成案件時會一起帶過去
+      ...readSource(req),
     });
     return NextResponse.json({ ok: true });
   } catch (e) {
