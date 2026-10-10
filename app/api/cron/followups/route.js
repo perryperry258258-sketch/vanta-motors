@@ -4,6 +4,7 @@ import { push, text, getQuota } from '../../../../lib/line';
 import { buildDigest } from '../../../../lib/digest';
 import { sendViewingReminders } from '../../../../lib/viewing';
 import { sendViewingFollowups, sendPartnerNudges } from '../../../../lib/nudges';
+import { sendFindMatches } from '../../../../lib/findMatch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -22,10 +23,12 @@ export async function GET(req) {
   const followups = await sendViewingFollowups(db, origin);
   // 業務逾時未接案、未給看車時間：提醒業務
   const nudges = await sendPartnerNudges(db, origin);
+  // 新上架的車符合客戶的找車需求：通知客戶
+  const findMatches = await sendFindMatches(db, origin);
   // 最後再查用量（包含上面剛傳出的訊息）
   const quota = await getQuota();
   const digest = await buildDigest(db, origin, { nudges, quota });
-  if (digest.empty) return NextResponse.json({ ok: true, sent: 0, reminders, followups, reason: 'nothing to remind' });
+  if (digest.empty) return NextResponse.json({ ok: true, sent: 0, reminders, followups, findMatches, reason: 'nothing to remind' });
 
   const { data: staff } = await db.from('profiles').select('user_id, line_user_id').in('role', ['admin', 'staff']).not('line_user_id', 'is', null);
   let sent = 0;
@@ -37,5 +40,5 @@ export async function GET(req) {
       console.error('digest push failed', s.user_id, e);
     }
   }
-  return NextResponse.json({ ok: true, sent, reminders, followups, nudges: { pending: nudges.pending.length, noSlots: nudges.noSlots.length }, quota, counts: digest.counts });
+  return NextResponse.json({ ok: true, sent, reminders, followups, findMatches, nudges: { pending: nudges.pending.length, noSlots: nudges.noSlots.length }, quota, counts: digest.counts });
 }
