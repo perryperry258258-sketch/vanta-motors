@@ -22,6 +22,10 @@ const LABELS = {
     descNote: '※以上車輛描述由實際車輛提供者提供，VANTA 協助整理刊登。實際車況、事故及維修紀錄，請於看車時向車輛提供者確認，並以實車檢視及相關紀錄為準。',
     price: '對客售價',
     market: '系統行情參考區間',
+    soldTitle: '這台車已經售出',
+    soldText: '謝謝大家的關注！想找類似的車，告訴 VANTA 你的條件，我們透過合作車源幫你找。',
+    soldFind: '請 VANTA 幫我找類似的車',
+    soldBrowse: '看其他在售車輛',
     marketNote: '「系統行情參考區間」為 VANTA 依車型、年份、里程、歷史新車價格及可取得之同款車源資料進行初步估算，提供找車時參考。此區間並非實際車輛售價、收購報價或交易價格；實際價格仍應依個別車況、配備、里程、車輛所在地及交易條件，由實際交易雙方確認。',
   },
   en: {
@@ -33,6 +37,10 @@ const LABELS = {
     descNote: '* The description above is provided by the vehicle provider and organized by VANTA. Please confirm the actual condition, accident and service history with the provider at the viewing, subject to inspection and records.',
     price: 'Our Price',
     market: 'System Reference Range',
+    soldTitle: 'This vehicle has been sold',
+    soldText: 'Thank you for your interest! Tell VANTA what you are looking for and we will search our partner network for similar vehicles.',
+    soldFind: 'Ask VANTA to Find a Similar Car',
+    soldBrowse: 'Browse vehicles for sale',
     marketNote: 'The System Reference Range is VANTA\'s preliminary estimate based on model, year, mileage, historical new-car prices and available listings, for reference when searching. It is not a vehicle sale price, buyback offer or transaction price; the actual price is confirmed by the parties based on condition, equipment, mileage, location and terms.',
   },
 };
@@ -84,7 +92,8 @@ export default async function VehiclePage({ params }) {
   const L = LABELS[lang] || LABELS.zh;
   const title = displayTitle(car, lang);
   const showText = (s) => s && (lang === 'zh' || !hasCJK(s));
-  const quote = await loadQuote(car);
+  const sold = !!car.sold_at;
+  const quote = sold ? null : await loadQuote(car);
   // 網站只顯示市場行情區間；系統估值、折舊率、計算明細屬於內部資料，不公開
   const market = quote && quote.publicOk ? quote.market : null;
 
@@ -116,6 +125,16 @@ export default async function VehiclePage({ params }) {
           </div>
         )}
         {car.source_owner_id && <p className="detail-note" style={{ marginTop: 4 }}>{L.partnerRole}</p>}
+        {sold && (
+          <div className="sold-box">
+            <h2>{L.soldTitle}</h2>
+            <p>{L.soldText}</p>
+            <div className="contact-actions">
+              <Link href={`/${lang}/find-your-car`} className="btn btn-dark">{L.soldFind}</Link>
+              <Link href={`/${lang}/vehicles`} className="btn btn-light">{L.soldBrowse}</Link>
+            </div>
+          </div>
+        )}
         <dl className="specs">
           {rows.map(([k, v]) => (
             <div key={k}>
@@ -138,7 +157,7 @@ export default async function VehiclePage({ params }) {
         <Link href={`/${lang}/vehicles`} className="back-link">{t.car.back}</Link>
       </div>
 
-      <ContactBar carId={car.id} title={title} lang={lang} />
+      {!sold && <ContactBar carId={car.id} title={title} lang={lang} />}
     </main>
   );
-}
+          }
