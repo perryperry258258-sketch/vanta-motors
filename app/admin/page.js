@@ -41,7 +41,7 @@ function CarList() {
   async function load() {
     const { data, error } = await getSupabase()
       .from('cars')
-      .select('id, slug, title, year, status, review_status, review_note, created_at, partner:partners(name), car_photos(path, sort_order), car_stats(views, line_clicks)')
+      .select('id, slug, title, year, status, review_status, review_note, created_at, sold_at, partner:partners(name), car_photos(path, sort_order), car_stats(views, line_clicks)')
       .order('created_at', { ascending: false })
       .order('sort_order', { referencedTable: 'car_photos' })
       .limit(1, { referencedTable: 'car_photos' })
@@ -162,6 +162,7 @@ function CarList() {
                     {car.year || '年份未填'}
                     <span className={`status status-${car.status}`}>{STATUS_LABEL[car.status]}</span>
                     {inReview(car) && <span className="status status-unlisted">待審核</span>}
+                    {car.sold_at && <span className="status status-unlisted">已售出</span>}
                   </p>
                   <p className="car-row-meta">
                     {car.partner ? `車源：${car.partner.name}｜` : ''}瀏覽 {car.stats.views}　LINE {car.stats.line}
@@ -177,6 +178,11 @@ function CarList() {
                       <button disabled={busy} onClick={() => patch(car, { status: 'unlisted' })}>下架</button>
                     ) : (
                       <button disabled={busy} onClick={() => approve(car)}>上架</button>
+                    )}
+                    {car.status === 'published' && (
+                      <button disabled={busy} onClick={() => patch(car, { sold_at: car.sold_at ? null : new Date().toISOString() })}>
+                        {car.sold_at ? '取消已售出' : '標示已售出'}
+                      </button>
                     )}
                     {car.status === 'published' && (
                       <a href={`/zh/vehicles/${car.slug}`} target="_blank" rel="noopener noreferrer">預覽</a>
