@@ -16,7 +16,7 @@ const EXTRA = {
     kmLabel: '里程',
     kms: [['', '不限里程'], ['30000', '3 萬公里內'], ['50000', '5 萬公里內'], ['100000', '10 萬公里內'], ['150000', '15 萬公里內']],
     total: (n) => `共 ${n} 台`,
-    tags: [['', '全部車輛'], ['new', '新到車'], ['lowkm', '低里程']],
+    tags: [['', '在售車輛'], ['new', '新到車'], ['lowkm', '低里程'], ['sold', '已售出']],
     clear: '清除篩選',
   },
   en: {
@@ -26,7 +26,7 @@ const EXTRA = {
     kmLabel: 'Mileage',
     kms: [['', 'Any mileage'], ['30000', 'Under 30,000 km'], ['50000', 'Under 50,000 km'], ['100000', 'Under 100,000 km'], ['150000', 'Under 150,000 km']],
     total: (n) => `${n} vehicles`,
-    tags: [['', 'All vehicles'], ['new', 'New Arrivals'], ['lowkm', 'Low Mileage']],
+    tags: [['', 'For sale'], ['new', 'New Arrivals'], ['lowkm', 'Low Mileage'], ['sold', 'Sold']],
     clear: 'Clear filters',
   },
 };
@@ -61,9 +61,9 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       .catch(() => {});
   }, []);
 
-  // 沒有填價格的車：向伺服器要大概的市場行情
+  // 沒有填價格的車：向伺服器要大概的市場行情（已售出的車不用）
   useEffect(() => {
-    const ids = cars.filter((c) => !c.price && !c.price_max && c.year && !asked.current.has(c.id)).map((c) => c.id);
+    const ids = cars.filter((c) => !c.sold_at && !c.price && !c.price_max && c.year && !asked.current.has(c.id)).map((c) => c.id);
     if (!ids.length) return;
     ids.forEach((id) => asked.current.add(id));
     fetch('/api/quotes', {
@@ -142,7 +142,7 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
         ))}
       </div>
 
-      <div className="tag-chips">
+      <div className="tag-chips brand-chips">
         {X.tags.map(([v, l]) => (
           <button key={v || 'all'} aria-pressed={tag === v} onClick={() => setTag(v)}>{l}</button>
         ))}
@@ -212,4 +212,4 @@ export default function CarSearch({ initial, brands, years, lang = 'zh' }) {
       )}
     </>
   );
-        }
+              }
