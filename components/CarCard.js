@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { dict, displayTitle, formatPrice } from '../lib/i18n';
+import { carTags } from '../lib/carTags';
 
 const MARKET = { zh: '行情參考 ', en: 'Est. ' };
 
@@ -7,10 +8,16 @@ const MARKET = { zh: '行情參考 ', en: 'Est. ' };
 export default function CarCard({ car, lang = 'zh', market = null }) {
   const title = displayTitle(car, lang);
   const hasPrice = car.price || car.price_max;
+  const tags = carTags(car, lang);
   return (
     <Link href={`/${lang}/vehicles/${car.slug}`} className="card">
       <div className="card-img">
         {car.cover && <img src={car.cover} alt={title} loading="lazy" />}
+        {tags.length > 0 && (
+          <div className="card-tags">
+            {tags.map(([k, label]) => <span key={k} className={`car-tag car-tag-${k}`}>{label}</span>)}
+          </div>
+        )}
       </div>
       <div className="card-body">
         <h3>{title}</h3>
