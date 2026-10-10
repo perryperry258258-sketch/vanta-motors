@@ -10,7 +10,7 @@ export default function CarCard({ car, lang = 'zh', market = null }) {
   const hasPrice = car.price || car.price_max;
   const tags = carTags(car, lang);
   return (
-    <Link href={`/${lang}/vehicles/${car.slug}`} className="card">
+    <Link href={`/${lang}/vehicles/${car.slug}`} className={`card${car.sold_at ? ' card-sold' : ''}`}>
       <div className="card-img">
         {car.cover && <img src={car.cover} alt={title} loading="lazy" />}
         {tags.length > 0 && (
@@ -22,7 +22,7 @@ export default function CarCard({ car, lang = 'zh', market = null }) {
       <div className="card-body">
         <h3>{title}</h3>
         {car.year && <p className="card-year">{car.year}</p>}
-        {hasPrice ? (
+        {car.sold_at ? null : hasPrice ? (
           <p className="card-price">{formatPrice(lang, car.price, car.price_max)}</p>
         ) : market ? (
           <p className="card-price card-price-market">
