@@ -16,8 +16,8 @@ const COND_TEXT = {
 };
 
 const PRICE_LABELS = {
-  zh: { buyback: '初步收購價格參考', market: '系統行情參考區間' },
-  en: { buyback: 'Initial Buyback Price Reference', market: 'System Reference Range' },
+  zh: { buyback: '初步收購價格參考', market: '系統行情參考區間', better: '車況良好、里程低、有原廠保養紀錄的車，實際收購價有機會更高。下方填寫車況、上傳照片，可以讓正式報價更準確。' },
+  en: { buyback: 'Initial Buyback Price Reference', market: 'System Reference Range', better: 'Well-kept, low-mileage vehicles with dealer service records may receive a higher offer. Add condition details and photos below for a more accurate quote.' },
 };
 
 const postJSON = (url, data, extra = {}) =>
@@ -149,11 +149,20 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
         <div className="estimate-box">
           {hasRange ? (
             <>
-              <p className="estimate-range-label">{P.buyback}</p>
-              <p className="estimate-range">NT${formatNT(result.low)} – {formatNT(result.high)}</p>
-              {result.market && (
-                <p className="estimate-sub">{P.market}　NT${formatNT(result.market.low)} – {formatNT(result.market.high)}</p>
+              {/* 先顯示系統行情參考區間，再顯示初步收購價格參考 */}
+              {result.market ? (
+                <>
+                  <p className="estimate-range-label">{P.market}</p>
+                  <p className="estimate-range">NT${formatNT(result.market.low)} – {formatNT(result.market.high)}</p>
+                  <p className="estimate-sub">{P.buyback}　NT${formatNT(result.low)} – {formatNT(result.high)}</p>
+                </>
+              ) : (
+                <>
+                  <p className="estimate-range-label">{P.buyback}</p>
+                  <p className="estimate-range">NT${formatNT(result.low)} – {formatNT(result.high)}</p>
+                </>
               )}
+              <p className="estimate-note">{P.better}</p>
               {result.quality === 'nearest' && <p className="estimate-limited">{t.limited}</p>}
               <p className="estimate-note">{t.disclaimer}</p>
               {result.updatedAt && (
@@ -375,4 +384,4 @@ export default function SellFlow({ lang, brands, minYear, maxYear }) {
       </p>
     </form>
   );
-                                                                 }
+}
