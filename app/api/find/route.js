@@ -4,6 +4,7 @@ import { taiwanYear } from '../../../lib/buyback/engine';
 import { valuate, publicValuation } from '../../../lib/buyback/valuation';
 import { matchScore, matchTier } from '../../../lib/find';
 import { photoUrl } from '../../../lib/supabase';
+import { readSource } from '../../../lib/source';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,6 +111,8 @@ export async function POST(req) {
         pricing_confidence: confidence,
         match_count: matches.length,
         lang,
+        // 客人從哪裡來（IG、FB、Google…），轉成案件時會一起帶過去
+        ...readSource(req),
       })
       .select('id')
       .single();
