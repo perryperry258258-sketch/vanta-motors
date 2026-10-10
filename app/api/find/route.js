@@ -32,9 +32,8 @@ export async function POST(req) {
       .maybeSingle();
     if (!model || !model.active || !model.brand || !model.brand.active) return fail('model not found', 404);
 
-    // 市場行情價與預估對客售價：只有選了年份才計算（歷史新車價＋目前車源）
+    // 系統行情參考區間：只有選了年份才計算（歷史新車價＋目前車源）
     let range = null;
-    let retail = null;
     let confidence = 'none';
     let updatedAt = null;
     let breakdown = null;
@@ -49,7 +48,6 @@ export async function POST(req) {
       });
       if (v.value) {
         range = v.ranges.market;
-        retail = v.ranges.retail;
         confidence = v.grade === 'A' || v.grade === 'B' ? 'medium' : 'low';
         updatedAt = v.updatedAt;
         breakdown = v.breakdown;
@@ -62,6 +60,7 @@ export async function POST(req) {
       .from('cars')
       .select('id, slug, title, title_en, brand, model, year, mileage, price, price_max, car_photos(path, sort_order)')
       .eq('status', 'published')
+      .is('sold_at', null)
       .ilike('brand', model.brand.name)
       .limit(300);
     const request = {
@@ -126,7 +125,6 @@ export async function POST(req) {
       budgetMax,
       notes: clean(b.notes, 500),
       range,
-      retail,
       confidence,
       updatedAt,
       breakdown,
