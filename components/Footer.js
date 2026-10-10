@@ -1,10 +1,12 @@
 import { LogoMark } from './Logo';
 import LangSwitch from './LangSwitch';
 import { site } from '../lib/site';
+import SourceTracker from './SourceTracker';
 
 export default function Footer({ lang }) {
   return (
     <footer className="footer">
+      <SourceTracker />
       <div className="footer-inner">
         <div className="footer-brand">
           <LogoMark size={22} />
@@ -39,4 +41,4 @@ export default function Footer({ lang }) {
       </div>
     </footer>
   );
-}
+        }
