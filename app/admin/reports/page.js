@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import AdminShell from '../../../components/admin/AdminShell';
+import AdminShell, { useRole } from '../../../components/admin/AdminShell';
 import { getSupabase } from '../../../lib/supabase';
 import { fetchAll } from '../../../lib/fetchAll';
 import { SETTLEMENT_LABEL, nt } from '../../../lib/deal';
 import { SOURCE_LABEL } from '../../../lib/case';
-import { SOURCES, SOURCE_LABEL as UTM_LABEL, MEDIUMS, MEDIUM_LABEL, buildTrackedUrl } from '../../../lib/source';
+import { SOURCES, SOURCE_LABEL as UTM_LABEL, MEDIUMS, MEDIUM_LABEL } from '../../../lib/source';
 import '../../../styles/viewing.css';
 
 export default function ReportsPage() {
@@ -248,7 +248,7 @@ function Reports() {
             </ul>
           </div>
 
-          <LinkBuilder />
+          <ShortLinks />
 
           {r.deals.length > 0 && (
             <div className="admin-card">
@@ -275,20 +275,102 @@ function Reports() {
   );
 }
 
-// 產生追蹤連結：貼到 IG、FB、廣告的網址加上來源，之後在「行銷來源」看得到效果
-function LinkBuilder() {
-  const [form, setForm] = useState({ page: 'https://vantamotors.tw/zh', source: 'instagram', medium: 'post', campaign: '' });
-  const [copied, setCopied] = useState(false);
-  const url = buildTrackedUrl(form.page.trim(), form.source, form.medium, form.campaign.trim());
-  const set = (k) => (e) => {
-    setCopied(false);
-    setForm({ ...form, [k]: e.target.value });
+// 短網址：vantamotors.tw/go/ig 這種好記的連結，點擊後自動帶來源，貼到 IG、FB、廣告都好看
+const SITE = 'https://vantamotors.tw';
+const EMPTY = { code: '', target: '/zh', source: 'instagram', medium: 'bio', campaign: '' };
+
+function ShortLinks() {
+  const { session } = useRole();
+  const [links, setLinks] = useState(null);
+  const [form, setForm] = useState(EMPTY);
+  const [msg, setMsg] = useState('');
+  const [copied, setCopied] = useState('');
+
+  const call = async (method, body) => {
+    const res = await fetch('/api/admin/short-links', {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || '操作失敗');
+    return out;
   };
+
+  async function load() {
+    try {
+      setLinks((await call('GET')).links);
+    } catch (e) {
+      setMsg(e.message);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function create() {
+    setMsg('');
+    try {
+      await call('POST', form);
+      setMsg(`已建立：${SITE}/go/${form.code.trim().toLowerCase()}`);
+      setForm(EMPTY);
+      load();
+    } catch (e) {
+      setMsg(e.message);
+    }
+  }
+
+  async function remove(code) {
+    if (!confirm(`刪除短網址 /go/${code}？已經貼出去的連結會失效（會改導到首頁）。`)) return;
+    try {
+      await call('POST', { action: 'delete', code });
+      load();
+    } catch (e) {
+      setMsg(e.message);
+    }
+  }
+
+  function copy(code) {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(`${SITE}/go/${code}`).then(() => setCopied(code));
+  }
+
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
   return (
     <div className="admin-card">
-      <h3>產生追蹤連結</h3>
-      <p className="admin-muted">要貼到 IG、FB、廣告的網址，先在這裡產生，系統就能分辨客人是從哪裡來的。</p>
-      <label className="field"><span>網址（首頁、在售車輛或某台車的網址）</span><input value={form.page} onChange={set('page')} /></label>
+      <h3>短網址（追蹤來源）</h3>
+      <p className="admin-muted">
+        建立像 <strong>vantamotors.tw/go/ig</strong> 這樣好記的連結，貼到 IG、FB、廣告。客人點進來會自動記錄來源，在上面的「行銷來源」看得到效果。
+      </p>
+
+      {(links || []).length > 0 && (
+        <ul className="rank" style={{ marginBottom: 16 }}>
+          {links.map((l) => (
+            <li key={l.code} style={{ display: 'block' }}>
+              <span><strong>vantamotors.tw/go/{l.code}</strong></span>
+              <br />
+              <span className="admin-muted">
+                → {l.target_path}｜{UTM_LABEL[l.utm_source] || l.utm_source || '—'}{l.utm_medium ? `・${MEDIUM_LABEL[l.utm_medium] || l.utm_medium}` : ''}{l.utm_campaign ? `・${l.utm_campaign}` : ''}｜點擊 {l.clicks || 0} 次
+              </span>
+              <div className="inline-actions">
+                <button onClick={() => copy(l.code)}>{copied === l.code ? '已複製' : '複製連結'}</button>
+                <button className="danger" onClick={() => remove(l.code)}>刪除</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3>新增短網址</h3>
+      <label className="field"><span>代碼（英文小寫、數字、-）</span>
+        <input placeholder="例如 ig、fb、ig-ad、reels-10" value={form.code} onChange={set('code')} />
+      </label>
+      {form.code.trim() && <p className="admin-muted">連結會是：{SITE}/go/{form.code.trim().toLowerCase()}</p>}
+      <label className="field"><span>點了要去哪一頁</span>
+        <input placeholder="/zh（首頁）、/zh/vehicles（在售車輛），或貼上某台車的網址" value={form.target} onChange={set('target')} />
+      </label>
       <div className="field-grid">
         <label className="field"><span>平台</span>
           <select value={form.source} onChange={set('source')}>{SOURCES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
@@ -297,18 +379,11 @@ function LinkBuilder() {
           <select value={form.medium} onChange={set('medium')}>{MEDIUMS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
         </label>
       </div>
-      <label className="field"><span>活動名稱（選填，英文或數字，例如 2026-10-reels）</span><input value={form.campaign} onChange={set('campaign')} /></label>
-      {url ? (
-        <>
-          <p className="result-box" style={{ wordBreak: 'break-all' }}>{url}</p>
-          <div className="inline-actions">
-            <button onClick={() => navigator.clipboard && navigator.clipboard.writeText(url).then(() => setCopied(true))}>{copied ? '已複製' : '複製連結'}</button>
-          </div>
-          <p className="admin-muted">類型「{MEDIUM_LABEL[form.medium]}」。IG 個人檔案的網站連結，建議換成平台 Instagram＋類型「個人檔案連結」的版本。</p>
-        </>
-      ) : (
-        <p className="admin-error">網址格式不正確，請包含 https://</p>
-      )}
+      <label className="field"><span>活動名稱（選填，英文或數字）</span><input placeholder="例如 2026-10" value={form.campaign} onChange={set('campaign')} /></label>
+      <div className="case-actions">
+        <button className="btn btn-dark" onClick={create} disabled={!form.code.trim()}>建立短網址</button>
+      </div>
+      {msg && <p className="result-box" style={{ wordBreak: 'break-all' }}>{msg}</p>}
     </div>
   );
-                          }
+                }
