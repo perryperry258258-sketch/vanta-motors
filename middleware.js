@@ -31,6 +31,6 @@ export function middleware(req) {
 }
 
 export const config = {
-  // 後台、合作夥伴、客戶確認頁與 API 不加語言前綴
-  matcher: ['/((?!_next|admin|partner|confirm|api|.*\\..*).*)'],
+  // 後台、合作夥伴、客戶確認頁、短網址（/go/…）與 API 不加語言前綴
+  matcher: ['/((?!_next|admin|partner|confirm|go|api|.*\\..*).*)'],
 };
