@@ -28,6 +28,7 @@ const NAV = [
   ['/admin/history', '歷史新車價', ['admin']],
   ['/admin/cleanup', '刪除資料', ['admin']],
   ['/admin/security', '安全測試', ['admin']],
+  ['/admin/data', '資料與個資', ['admin']],
   ['/admin/notify', 'LINE 提醒', ['admin', 'staff']],
 ];
 
