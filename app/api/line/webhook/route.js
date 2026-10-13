@@ -13,6 +13,8 @@ const FIND_WORDS = /找車|想找|預算/;
 // 圖文選單送出的固定文字：沒有進行中案件時不另外建立案件，避免產生大量空案件
 const MENU_ONLY = new Set(['找車', '我要賣車', '預約看車', '聯絡我們', '關於 VANTA', '關於VANTA']);
 const compact = (id) => String(id || '').replace(/-/g, '').toUpperCase();
+// 圖文選單「預約看車」由系統回覆（能判斷客人在問哪台車）；其他選單文字由 LINE 官方帳號的自動回應訊息回覆
+const MENU_TEXTS = new Set(['預約看車']);
 // 只認「預約看車」按鈕帶的開頭；詢問訊息裡的「□ 預約看車」選項不算
 const VIEWING_WORDS = /我想預約看車|I'd like to book a (viewing|visit)/i;
 
@@ -119,6 +121,12 @@ async function handle(db, event) {
   const customer = await upsertCustomer(db, userId);
   if (!customer) return;
 
+  // 圖文選單的文字按鈕
+  if (MENU_TEXTS.has(body)) {
+    await handleMenu(db, event, customer);
+    return;
+  }
+
   // 0. 網站「我要找車」帶來的訊息：建立找車案件
   const findRefMatch = body.match(/(?:找車編號|Find Ref)\s*[:：]?\s*([0-9A-F]{8})/i);
   if (findRefMatch) {
@@ -164,6 +172,29 @@ async function handle(db, event) {
 
   // 3. 一般訊息：加到進行中的案件，沒有就建立新案件
   await appendOrCreate(db, customer, body);
+}
+
+// 圖文選單「預約看車」：客人正在詢問某台車就直接安排；沒有就引導去挑車
+async function handleMenu(db, event, customer) {
+  const origin = 'https://vantamotors.tw';
+  const { data: recent } = await db
+    .from('cases')
+    .select('id, case_no, subject, status, car_id')
+    .eq('customer_id', customer.id)
+    .not('car_id', 'is', null)
+    .order('last_activity_at', { ascending: false })
+    .limit(5);
+  const open = (recent || []).find((c) => !CLOSED.includes(c.status));
+  if (open) {
+    await viewingRequest(db, open.id);
+    await reply(event.replyToken, [
+      text(`收到，我會請車輛負責人提供${open.subject ? `「${open.subject}」` : ''}可以看車的時間，確認後在這裡通知您。\n\n案件編號：${open.case_no}\n\n如果想看的是別台車，直接告訴我們車款就好。`),
+    ]);
+    return;
+  }
+  await reply(event.replyToken, [
+    text(`想預約看哪台車呢？😊\n\n可以先到在售車輛挑選，在車輛頁按「預約看車」，我們就會幫您安排：\n${origin}/go/line-cars\n\n或直接在這裡告訴我們想看的車款，我們幫您確認。`),
+  ]);
 }
 
 function typeLabel(t) {
