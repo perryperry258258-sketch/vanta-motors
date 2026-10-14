@@ -7,7 +7,8 @@ import { findDict } from '../../lib/i18n-find';
 import { getAdminSupabase } from '../../lib/supabaseAdmin';
 import { quoteCars } from '../../lib/buyback/quote';
 
-export const dynamic = 'force-dynamic';
+// 首頁 5 分鐘更新一次：最新車源與行情不用每個客人都重新計算
+export const revalidate = 300;
 
 export async function generateMetadata({ params }) {
   const { lang } = await params;
