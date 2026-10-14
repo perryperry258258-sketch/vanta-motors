@@ -10,7 +10,8 @@ import { dict, alternates, displayTitle, formatPrice, formatMileage, hasCJK } fr
 import { carTags } from '../../../../lib/carTags';
 import '../../../../styles/find.css';
 
-export const dynamic = 'force-dynamic';
+// 車輛頁 10 分鐘更新一次：同一台車的行情不用每個客人都重新計算（修改車輛後最多 10 分鐘網站會更新）
+export const revalidate = 600;
 
 const LABELS = {
   zh: {
@@ -160,4 +161,4 @@ export default async function VehiclePage({ params }) {
       {!sold && <ContactBar carId={car.id} title={title} lang={lang} />}
     </main>
   );
-          }
+                                    }
