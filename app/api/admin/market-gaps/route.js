@@ -25,7 +25,8 @@ export async function GET(req) {
       db.from('buyback_brands').select('id, name, active, buyback_models(id, name, active)').eq('active', true),
     ]);
 
-    const quotes = await quoteCars(db, cars || []);
+    // 後台檢查用最新資料（匯入新車價後馬上看得到結果）
+    const quotes = await quoteCars(db, cars || [], { fresh: true });
     const rows = (cars || []).map((c) => {
       const b = matchBrand(brands, c);
       const m = b ? matchModel(b.buyback_models, c) : null;
