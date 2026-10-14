@@ -3,7 +3,8 @@ import { getAdminSupabase } from '../../../lib/supabaseAdmin';
 import { DEFAULT_SETTINGS, taiwanYear } from '../../../lib/buyback/engine';
 import { dict, alternates } from '../../../lib/i18n';
 
-export const dynamic = 'force-dynamic';
+// 品牌、車型清單 10 分鐘更新一次（不用每個客人都重新讀資料庫）
+export const revalidate = 600;
 
 export async function generateMetadata({ params }) {
   const { lang } = await params;
